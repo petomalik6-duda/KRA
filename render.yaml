@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: stremio-nuvio-kra-addon
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: CONFIG_SECRET
+        generateValue: true
+      - key: DEBUG
+        value: 0

@@ -14,3 +14,5 @@ services:
         generateValue: true
       - key: DEBUG
         value: 0
+      - key: UPSTREAM_STREMIO_BASE
+        sync: false

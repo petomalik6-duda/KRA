@@ -20,41 +20,70 @@ import {
   safeMessage
 } from './utils.js';
 
-export const ADDON_ID = 'community.kra.streamcinema.apk';
-export const ADDON_VERSION = '2.0.4';
+export const ADDON_ID = 'org.stream-cinema.online';
+export const ADDON_VERSION = '2.2.0';
 
 export const CATALOGS = [
-  { id:'sc-movie-latest', type:'movie', name:'SC • Filmy • Novinky', path:'/FMovies/latest' },
-  { id:'sc-movie-dubbed', type:'movie', name:'SC • Filmy • Novinky dabované', path:'/FMovies/latestd' },
-  { id:'sc-movie-watching', type:'movie', name:'SC • Filmy • TOP dnes', path:'/FMovies/watching' },
-  { id:'sc-movie-popular', type:'movie', name:'SC • Filmy • TOP týždeň', path:'/FMovies/popular' },
-  { id:'sc-movie-trending', type:'movie', name:'SC • Filmy • Trendy', path:'/FMovies/trending' },
-  { id:'sc-movie-newstream', type:'movie', name:'SC • Filmy • Najnovšie streamy', path:'/FMovies/newstream' },
-  { id:'sc-series-new', type:'series', name:'SC • Seriály • Novinky', path:'/FSeries/latestt' },
-  { id:'sc-series-dubbed', type:'series', name:'SC • Seriály • Novinky dabované', path:'/FSeries/latestd' },
-  { id:'sc-series-latest', type:'series', name:'SC • Seriály • Najnovšie pridané', path:'/FSeries/latest' },
-  { id:'sc-series-newep', type:'series', name:'SC • Seriály • Najnovšie epizódy', path:'/FSeries/newep' },
-  { id:'sc-series-watching', type:'series', name:'SC • Seriály • TOP dnes', path:'/FSeries/watching' },
-  { id:'sc-series-popular', type:'series', name:'SC • Seriály • TOP týždeň', path:'/FSeries/popular' },
-  { id:'sc-series-trending', type:'series', name:'SC • Seriály • Trendy', path:'/FSeries/trending' },
-  { id:'sc-hdr-latest', type:'movie', name:'SC • HDR • Novinky', path:'/FHDR/latest' },
-  { id:'sc-docu-latest', type:'movie', name:'SC • Dokumenty • Novinky', path:'/FDocu/latest' },
-  { id:'sc-concert-latest', type:'movie', name:'SC • Koncerty • Novinky', path:'/FKoncert/latest' }
+  { id:'sc-movie-latest', type:'movie', name:'⏳ SC: Najnovšie filmy', path:'/FMovies/latest', extra:[{name:'skip',isRequired:false}] },
+  { id:'sc-movie-popular', type:'movie', name:'🔥 SC: Populárne filmy', path:'/FMovies/popular', extra:[{name:'search',isRequired:false},{name:'skip',isRequired:false}] },
+  { id:'sc-series-latest', type:'series', name:'⏳ SC: Najnovšie seriály', path:'/FSeries/latest', extra:[{name:'skip',isRequired:false}] },
+  { id:'sc-series-popular', type:'series', name:'🔥 SC: Populárne seriály', path:'/FSeries/popular', extra:[{name:'search',isRequired:false},{name:'skip',isRequired:false}] },
+
+  // Derived movie catalogs. These map to the upstream movie filter catalog.
+  { id:'sc-movie-2026', type:'movie', name:'🎬 SC: Filmy 2026', path:'/FMovies/filter', fixedExtra:{year:'2026'} },
+  { id:'sc-movie-2025', type:'movie', name:'🎬 SC: Filmy 2025', path:'/FMovies/filter', fixedExtra:{year:'2025'} },
+  { id:'sc-movie-action', type:'movie', name:'💥 SC: Akčné filmy', path:'/FMovies/filter', fixedExtra:{genre:'Action'} },
+  { id:'sc-movie-comedy', type:'movie', name:'😂 SC: Komédie', path:'/FMovies/filter', fixedExtra:{genre:'Comedy'} },
+  { id:'sc-movie-horror', type:'movie', name:'👻 SC: Horory', path:'/FMovies/filter', fixedExtra:{genre:'Horror'} },
+  { id:'sc-movie-scifi', type:'movie', name:'🚀 SC: Sci‑Fi filmy', path:'/FMovies/filter', fixedExtra:{genre:'Sci-Fi'} },
+  { id:'sc-movie-crime', type:'movie', name:'🔎 SC: Krimi filmy', path:'/FMovies/filter', fixedExtra:{genre:'Crime'} },
+  { id:'sc-movie-thriller', type:'movie', name:'⚡ SC: Thrillery', path:'/FMovies/filter', fixedExtra:{genre:'Thriller'} },
+  { id:'sc-movie-documentary', type:'movie', name:'🎥 SC: Dokumenty', path:'/FMovies/filter', fixedExtra:{genre:'Documentary'} },
+  { id:'sc-movie-animation', type:'movie', name:'🧸 SC: Animované filmy', path:'/FMovies/filter', fixedExtra:{genre:'Animation'} },
+  { id:'sc-movie-family', type:'movie', name:'👨‍👩‍👧 SC: Rodinné filmy', path:'/FMovies/filter', fixedExtra:{genre:'Family'} },
+  { id:'sc-movie-romance', type:'movie', name:'❤️ SC: Romantické filmy', path:'/FMovies/filter', fixedExtra:{genre:'Romance'} },
+
+  // Derived series catalogs. These map to the upstream series filter catalog.
+  { id:'sc-series-2026', type:'series', name:'📺 SC: Seriály 2026', path:'/FSeries/filter', fixedExtra:{year:'2026'} },
+  { id:'sc-series-2025', type:'series', name:'📺 SC: Seriály 2025', path:'/FSeries/filter', fixedExtra:{year:'2025'} },
+  { id:'sc-series-drama', type:'series', name:'🎭 SC: Dramatické seriály', path:'/FSeries/filter', fixedExtra:{genre:'Drama'} },
+  { id:'sc-series-comedy', type:'series', name:'😂 SC: Komediálne seriály', path:'/FSeries/filter', fixedExtra:{genre:'Comedy'} },
+  { id:'sc-series-crime', type:'series', name:'🔎 SC: Krimi seriály', path:'/FSeries/filter', fixedExtra:{genre:'Crime'} },
+  { id:'sc-series-scifi', type:'series', name:'🚀 SC: Sci‑Fi seriály', path:'/FSeries/filter', fixedExtra:{genre:'Sci-Fi'} },
+  { id:'sc-series-thriller', type:'series', name:'⚡ SC: Thriller seriály', path:'/FSeries/filter', fixedExtra:{genre:'Thriller'} },
+  { id:'sc-series-documentary', type:'series', name:'🎥 SC: Dokumentárne seriály', path:'/FSeries/filter', fixedExtra:{genre:'Documentary'} },
+  { id:'sc-series-animation', type:'series', name:'🧸 SC: Animované seriály', path:'/FSeries/filter', fixedExtra:{genre:'Animation'} },
+
+  { id:'sc-movie-filter', type:'movie', name:'🔧 SC: Filter filmov', path:'/FMovies/filter', filter:true },
+  { id:'sc-series-filter', type:'series', name:'🔧 SC: Filter seriálov', path:'/FSeries/filter', filter:true }
 ];
+
+const GENRES=['Action','Animation','Adventure','Documentary','Drama','Erotic','Fantasy','History','Horror','Music','Comedy','Crime','Musical','Mystery','Family','Romance','Sci-Fi','Sport','Stand-up','Thriller','War','Western','Biography','Fairy Tale'];
+const YEARS=Array.from({length:37},(_,i)=>String(2026-i));
+const LETTERS=['0-9',...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'];
+function catalogExtras(c){
+  if(c.filter) return [
+    {name:'genre',isRequired:false,options:GENRES},
+    {name:'year',isRequired:false,options:YEARS},
+    {name:'letter',isRequired:false,options:LETTERS},
+    {name:'skip',isRequired:false}
+  ];
+  return c.extra || [{name:'skip',isRequired:false}];
+}
 
 export function makeManifest(configured = false) {
   return {
     id: ADDON_ID,
     version: ADDON_VERSION,
-    name: 'KRA • Stream Cinema APK',
-    description: 'Stremio/Nuvio addon reconstructed from the supplied Android APK: Stream Cinema catalogs, metadata and KRA streams.',
+    name: 'Stream Cinema',
+    description: 'Stream Cinema compatible addon for Stremio/Nuvio with catalogs, metadata and streams.',
     resources: [
       { name:'catalog', types:['movie','series'], idPrefixes:['sc:','tt'] },
       { name:'meta', types:['movie','series'], idPrefixes:['sc:','tt'] },
       { name:'stream', types:['movie','series'], idPrefixes:['sc:','tt'] }
     ],
     types: ['movie','series'],
-    catalogs: CATALOGS.map(c => ({ id:c.id, type:c.type, name:c.name, extra:[{name:'skip',isRequired:false}] })),
+    catalogs: CATALOGS.map(c => ({ id:c.id, type:c.type, name:c.name, extra:catalogExtras(c) })),
     idPrefixes: ['sc:','tt'],
     behaviorHints: { configurable:true, configurationRequired:!configured }
   };
@@ -117,8 +146,9 @@ export async function getCatalog(config, type, catalogId, extra = {}) {
   const cat = CATALOGS.find(c => c.id===catalogId && c.type===type);
   if (!cat) return { metas:[], diagnostics:{stage:'catalog',error:'Unknown catalog'} };
   const kra = new KraClient(config); const sc = new StreamCinemaClient(config,kra);
-  const skip = Math.max(0, Number(extra.skip)||0);
-  const response = await sc.getMenu(cat.path, { skip, type });
+  const effectiveExtra = { ...(cat.fixedExtra || {}), ...(extra || {}) };
+  const skip = Math.max(0, Number(effectiveExtra.skip)||0);
+  const response = await sc.getMenu(cat.path, { skip, type, ...effectiveExtra });
   const items = menuItems(response);
   const metas = items.map(x=>toMetaPreview(x,type)).filter(Boolean);
   return { metas:metas.slice(0,100), diagnostics:{stage:'ok',path:cat.path,route:response?.__menuRoute||null,items:items.length,shape:responseShape(response),rawPreview:rawResponsePreview(response)} };

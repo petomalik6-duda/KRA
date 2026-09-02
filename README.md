@@ -1,55 +1,54 @@
-# KRA • Stream Cinema APK addon v2.0.4
+# Stream Cinema / KRA addon v2.2.0
 
-Stremio/Nuvio addon reconstructed from the supplied Android APK. Unlike the older stream-only bridge, this version exposes Stream Cinema catalog paths from the APK and uses local `sc:` IDs so titles opened from a catalog can be resolved directly without searching the title again.
+Stremio/Nuvio addon with catalogs, metadata and streams.
 
-## Features
+## Modes
 
-- KRA login and session handling
-- Stream Cinema authentication
-- movie and series catalogs from the APK
-- local `sc:` IDs carrying the original SC navigation path
-- metadata route
-- series episode discovery by traversing the SC branch
-- KRA stream resolving
-- CZ/SK preference
-- encrypted configuration using `CONFIG_SECRET`
-- diagnostics for IMDb lookup and catalog transport
+1. **Bridge mode (recommended now):** proxies catalog/meta/stream requests to a known working Stream Cinema Stremio addon. Configure `UPSTREAM_STREMIO_BASE` on Render. This keeps the working upstream URL private and lets your own Render URL be installed in Stremio/Nuvio.
+2. **Native KRA/APK fallback:** if `UPSTREAM_STREMIO_BASE` is empty, the addon uses the reconstructed KRA + Stream Cinema API implementation from the supplied APK.
 
 ## Catalogs
 
-Movies: Novinky, Novinky dabované, TOP dnes, TOP týždeň, Trendy, Najnovšie streamy.
+- SC: Najnovšie filmy
+- SC: Populárne filmy
+- SC: Najnovšie seriály
+- SC: Populárne seriály
+- SC: Filter filmov (genre/year/letter)
+- SC: Filter seriálov (genre/year/letter)
 
-Series: Novinky, Novinky dabované, Najnovšie pridané, Najnovšie epizódy, TOP dnes, TOP týždeň, Trendy.
+The manifest structure mirrors the working cder.club Stream Cinema addon: resources `catalog`, `meta`, `stream`, types `movie`,`series`, IDs `tt` and `sc`.
 
-Other movie-type catalogs: HDR novinky, Dokumenty novinky, Koncerty novinky.
+## Render deployment
 
-See `APK_CATALOGS.md` for the paths extracted from the APK.
+Upload the repository and deploy it. Keep `CONFIG_SECRET` unchanged.
 
-## Render
+In **Render → Environment**, add:
 
-Recommended: deploy from `render.yaml` as a Blueprint. If using an existing Web Service, create a persistent environment variable named `CONFIG_SECRET` manually, for example with `openssl rand -base64 48`. Never change it after creating configured addon URLs.
+`UPSTREAM_STREMIO_BASE`
 
-After deploy:
+Set it to the working addon URL **without** `/manifest.json`.
 
-1. Open `/health` and confirm version `2.0.4`.
-2. Open `/configure` and enter the user's own KRA credentials.
-3. Install the generated manifest in Stremio or Nuvio.
-4. Test a catalog.
+Example shape only:
 
-## Catalog diagnostics
+`https://example.com/stremio/your-private-id`
 
-For the Movies / New catalog:
+Do not commit this value to GitHub.
 
-`/<CONFIG>/diagnostics.json?catalog=sc-movie-latest`
+Then redeploy and check:
 
-For Series / New:
+- `/health` → should show `version: 2.2.0` and `bridge: true`
+- `/configure` → create your own addon URL
 
-`/<CONFIG>/diagnostics.json?catalog=sc-series-new`
+The generated manifest URL can be installed in both Stremio and Nuvio.
 
-The response reports the APK path, selected transport route, number of extracted items, response shape, and safe raw preview when relevant.
+## Security
 
-## Legacy IMDb stream diagnostics
+Treat `UPSTREAM_STREMIO_BASE` as private because it may identify an already-configured upstream account. Store it only as a Render environment variable.
 
-`/<CONFIG>/diagnostics.json?type=movie&id=tt0133093`
 
-The `tt...` compatibility path remains available, but the preferred flow is catalog -> local `sc:` id -> direct SC branch -> KRA stream.
+## Rozšírené katalógy v2.2.0
+Okrem pôvodných cder katalógov táto verzia pridáva odvodené katalógy podľa roku a žánru. V bridge režime sa mapujú na upstream `sc-movie-filter` / `sc-series-filter`, takže nevyžadujú nové upstream route.
+
+Filmy: 2026, 2025, Akčné, Komédie, Horory, Sci‑Fi, Krimi, Thrillery, Dokumenty, Animované, Rodinné, Romantické.
+
+Seriály: 2026, 2025, Dráma, Komédie, Krimi, Sci‑Fi, Thriller, Dokumentárne, Animované.

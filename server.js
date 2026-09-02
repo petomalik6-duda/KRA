@@ -5,10 +5,44 @@ import { decodeConfig, encodeConfig, configSecurityMode } from './src/config.js'
 import { KraClient } from './src/kra.js';
 import { HttpError } from './src/http.js';
 import { StreamCinemaClient } from './src/sc.js';
-import { getStreams, getCatalog, getMeta, makeManifest, ADDON_VERSION } from './src/stremio.js';
+import { getStreams, getCatalog, getMeta, makeManifest, ADDON_VERSION, CATALOGS } from './src/stremio.js';
 import { htmlEscape, safeMessage } from './src/utils.js';
 
 const PORT = Number(process.env.PORT || 3000);
+
+function bridgeBase() {
+  const raw = String(process.env.UPSTREAM_STREMIO_BASE || '').trim().replace(/\/+$/, '');
+  return raw.endsWith('/manifest.json') ? raw.slice(0, -'/manifest.json'.length) : raw;
+}
+
+async function bridgeJson(relativePath) {
+  const base = bridgeBase();
+  if (!base) return null;
+  const target = `${base}/${String(relativePath).replace(/^\/+/, '')}`;
+  const r = await fetch(target, {
+    signal: AbortSignal.timeout(20000),
+    headers: { Accept: 'application/json', 'User-Agent': 'Stremio-KRA-Bridge/2.2.0' }
+  });
+  const text = await r.text();
+  if (!r.ok) throw new Error(`Upstream bridge HTTP ${r.status}`);
+  try { return JSON.parse(text); }
+  catch { throw new Error('Upstream bridge returned non-JSON response.'); }
+}
+
+
+function bridgeCatalogPath(type, catalogId, extra = {}) {
+  const cat = CATALOGS.find(c => c.id === catalogId && c.type === type);
+  if (!cat) return null;
+  const merged = { ...(cat.fixedExtra || {}), ...(extra || {}) };
+  let upstreamId = catalogId;
+  if (cat.fixedExtra) upstreamId = type === 'movie' ? 'sc-movie-filter' : 'sc-series-filter';
+  const params = new URLSearchParams();
+  for (const [k,v] of Object.entries(merged)) {
+    if (v !== undefined && v !== null && String(v) !== '') params.set(k, String(v));
+  }
+  const suffix = params.toString();
+  return `catalog/${type}/${upstreamId}${suffix ? `/${suffix}` : ''}.json`;
+}
 
 function corsHeaders(contentType = 'application/json; charset=utf-8') {
   return {
@@ -112,7 +146,7 @@ const server = http.createServer(async (req, res) => {
       sendHtml(res, 200, configurePage(req)); return;
     }
     if (req.method === 'GET' && path === '/health') {
-      sendJson(res, 200, { ok: true, version: ADDON_VERSION, node: process.version, configSecurity: configSecurityMode(), at: new Date().toISOString() }); return;
+      sendJson(res, 200, { ok: true, version: ADDON_VERSION, node: process.version, configSecurity: configSecurityMode(), bridge: Boolean(bridgeBase()), at: new Date().toISOString() }); return;
     }
     if (req.method === 'GET' && path === '/manifest.json') {
       sendJson(res, 200, makeManifest(false)); return;
@@ -208,6 +242,9 @@ const server = http.createServer(async (req, res) => {
         for (const [k,v] of params.entries()) extra[k] = v;
       }
       try {
+        const bridgePath = bridgeCatalogPath(type, catalogId, extra);
+        const bridged = bridgePath ? await bridgeJson(bridgePath) : null;
+        if (bridged) { sendJson(res, 200, bridged); return; }
         const result = await getCatalog(config, type, catalogId, extra);
         if (process.env.DEBUG === '1') console.log('[catalog]', type, catalogId, result.diagnostics);
         sendJson(res, 200, { metas: result.metas });
@@ -223,6 +260,8 @@ const server = http.createServer(async (req, res) => {
       const [, token, type, id] = metaMatch;
       const config = decodeConfig(token);
       try {
+        const bridged = await bridgeJson(`meta/${type}/${id}.json`);
+        if (bridged) { sendJson(res, 200, bridged); return; }
         const meta = await getMeta(config, type, id);
         sendJson(res, 200, { meta });
       } catch (e) {
@@ -237,6 +276,8 @@ const server = http.createServer(async (req, res) => {
       const [, token, type, id] = streamMatch;
       const config = decodeConfig(token);
       try {
+        const bridged = await bridgeJson(`stream/${type}/${id}.json`);
+        if (bridged) { sendJson(res, 200, bridged); return; }
         const result = await getStreams(config, type, id);
         if (process.env.DEBUG === '1') console.log('[stream]', type, id, result.diagnostics);
         sendJson(res, 200, { streams: result.streams });

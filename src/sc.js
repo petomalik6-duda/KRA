@@ -95,7 +95,7 @@ function commonQuery(url, config, options = {}) {
 
 function commonHeaders(config, authToken = null) {
   const headers = {
-    'User-Agent': 'ArchivCZSK/2.0.0 (plugin.video.stream-cinema/3.30)',
+    'User-Agent': 'ArchivCZSK/3.5.2 (plugin.video.stream-cinema/3.30)',
     'X-Uuid': config.uid
   };
   if (authToken) headers['X-AUTH-TOKEN'] = authToken;
@@ -127,9 +127,7 @@ export class StreamCinemaClient {
   async getAuthToken(force = false) {
     const cached = authCache.get(this.key);
     if (!force && cached?.token && Date.now() - cached.createdAt < AUTH_TTL_MS) {
-      const check = await this.validateAuthToken(cached.token);
-      if (check.ok) return cached.token;
-      authCache.delete(this.key);
+      return cached.token;
     }
 
     const kraToken = await this.kra.login(force);
@@ -145,17 +143,20 @@ export class StreamCinemaClient {
     });
     if (!data?.token) throw new Error(`Stream Cinema authentication failed${data?.error ? `: ${data.error}` : ''}`);
 
-    // The maintained plugin waits before validating a freshly issued token.
+    // ArchivCZSK checks the token against /kodi/. Keep that check for diagnostics,
+    // but do not discard a freshly-issued token solely because the root route returns 404.
+    // Some clients can use the same token successfully on concrete catalog routes.
     await new Promise(resolve => setTimeout(resolve, 5000));
     const validation = await this.validateAuthToken(data.token);
-    if (!validation.ok) {
-      const e = validation.error;
-      const status = e instanceof HttpError ? e.status : null;
-      throw new Error(`Stream Cinema returned a token but it is not valid yet${status ? ` (HTTP ${status})` : ''}. The account may need token validation/approval.`);
-    }
+    const validationStatus = validation.ok ? 200 : (validation.error instanceof HttpError ? validation.error.status : null);
 
-    authCache.set(this.key, { token: data.token, createdAt: Date.now() });
-    debug('Stream Cinema auth token validated OK');
+    authCache.set(this.key, {
+      token: data.token,
+      createdAt: Date.now(),
+      validationOk: validation.ok,
+      validationStatus
+    });
+    debug(`Stream Cinema auth token issued; root validation=${validation.ok ? 'ok' : validationStatus || 'failed'}`);
     return data.token;
   }
 

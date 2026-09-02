@@ -19,7 +19,7 @@ import {
 } from './utils.js';
 
 export const ADDON_ID = 'community.kra.streamcinema.bridge';
-export const ADDON_VERSION = '1.0.4';
+export const ADDON_VERSION = '1.0.5';
 
 export function makeManifest(configured = false) {
   return {
@@ -200,9 +200,19 @@ export async function getStreams(config, type, rawId) {
   const kra = new KraClient(config);
   const sc = new StreamCinemaClient(config, kra);
   const searchResponse = await sc.search(type, target.title, target.imdbId);
-  const ranked = rankSearchCandidates(menuItems(searchResponse), target);
+  const searchItems = menuItems(searchResponse);
+  const ranked = rankSearchCandidates(searchItems, target);
   const candidates = ranked.filter((x) => x.exactId || x.titleScore >= 0.35).slice(0, 4);
-  if (!candidates.length) return { streams: [], diagnostics: { stage: 'search', candidates: ranked.slice(0, 5).map(({score, exactId, titleScore, year, item}) => ({score, exactId, titleScore, year, title:itemLabel(item), url:!!item?.url})) } };
+  if (!candidates.length) return {
+    streams: [],
+    diagnostics: {
+      stage: 'search',
+      route: searchResponse?.__searchRoute || null,
+      extractedItems: searchItems.length,
+      responseShape: responseShape(searchResponse),
+      candidates: ranked.slice(0, 8).map(({score, exactId, titleScore, year, item}) => ({score, exactId, titleScore, year, title:itemLabel(item), url:!!item?.url}))
+    }
+  };
 
   let sourceStreams = [];
   let branchVisited = 0;

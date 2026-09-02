@@ -204,11 +204,73 @@ export class StreamCinemaClient {
 }
 
 export function menuItems(response) {
-  const menu = response?.menu;
-  if (!menu) return [];
-  if (Array.isArray(menu)) return menu.filter((x) => x && typeof x === 'object');
-  if (Array.isArray(menu?.menu)) return menu.menu.filter((x) => x && typeof x === 'object');
-  return [];
+  const out = [];
+  const seenObjects = new Set();
+  const seenItems = new Set();
+  const preferredKeys = new Set(['menu', 'items', 'results', 'result', 'data', 'content', 'list', 'movies', 'series']);
+
+  const looksLikeItem = (x) => {
+    if (!x || typeof x !== 'object' || Array.isArray(x)) return false;
+    return Boolean(
+      x.url || x.title || x.name || x.label || x.info || x.i18n_info ||
+      x.unique_ids || x.imdb || x.imdb_id || x.ident || x.id
+    );
+  };
+
+  const pushItem = (x) => {
+    if (!looksLikeItem(x) || seenItems.has(x)) return;
+    seenItems.add(x);
+    out.push(x);
+  };
+
+  const walk = (node, depth = 0, fromPreferredKey = false) => {
+    if (node == null || depth > 6) return;
+    if (Array.isArray(node)) {
+      for (const x of node) {
+        if (fromPreferredKey) pushItem(x);
+        if (x && typeof x === 'object') walk(x, depth + 1, false);
+      }
+      return;
+    }
+    if (typeof node !== 'object' || seenObjects.has(node)) return;
+    seenObjects.add(node);
+
+    // Some SC responses wrap one result object directly instead of an array.
+    if (fromPreferredKey) pushItem(node);
+
+    for (const [key, value] of Object.entries(node)) {
+      if (value == null || typeof value !== 'object') continue;
+      walk(value, depth + 1, preferredKeys.has(String(key).toLowerCase()));
+    }
+  };
+
+  walk(response, 0, false);
+  return out;
+}
+
+export function responseShape(response) {
+  if (response == null) return { type: String(response), keys: [], arrays: [] };
+  if (Array.isArray(response)) return { type: 'array', keys: [], arrays: [{ path: '$', length: response.length }] };
+  if (typeof response !== 'object') return { type: typeof response, keys: [], arrays: [] };
+
+  const arrays = [];
+  const seen = new Set();
+  const walk = (node, path = '$', depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 3 || seen.has(node)) return;
+    seen.add(node);
+    for (const [key, value] of Object.entries(node)) {
+      const childPath = `${path}.${key}`;
+      if (Array.isArray(value)) {
+        arrays.push({ path: childPath, length: value.length });
+        for (const item of value.slice(0, 2)) walk(item, `${childPath}[]`, depth + 1);
+      } else if (value && typeof value === 'object') {
+        walk(value, childPath, depth + 1);
+      }
+      if (arrays.length >= 20) return;
+    }
+  };
+  walk(response);
+  return { type: 'object', keys: Object.keys(response).slice(0, 30), arrays: arrays.slice(0, 20) };
 }
 
 export function streamItems(response) {

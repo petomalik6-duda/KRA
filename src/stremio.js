@@ -6,6 +6,7 @@ import {
   menuItems,
   rankSearchCandidates,
   rankTraversalItems,
+  rawResponsePreview,
   responseShape,
   streamItems,
   versionIdent
@@ -20,7 +21,7 @@ import {
 } from './utils.js';
 
 export const ADDON_ID = 'community.kra.streamcinema.bridge';
-export const ADDON_VERSION = '1.0.6';
+export const ADDON_VERSION = '1.0.7';
 
 export function makeManifest(configured = false) {
   return {
@@ -211,6 +212,7 @@ export async function getStreams(config, type, rawId) {
       route: searchResponse?.__searchRoute || null,
       extractedItems: searchItems.length,
       responseShape: responseShape(searchResponse),
+      rawPreview: rawResponsePreview(searchResponse),
       candidates: ranked.slice(0, 8).map(({score, exactId, titleScore, year, item}) => ({score, exactId, titleScore, year, title:itemLabel(item), url:!!item?.url}))
     }
   };

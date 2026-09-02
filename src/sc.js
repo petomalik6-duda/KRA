@@ -203,7 +203,69 @@ export class StreamCinemaClient {
   }
 }
 
+
+function tryParseJsonText(text) {
+  const raw = String(text ?? '').replace(/^\uFEFF/, '').trim();
+  if (!raw) return null;
+  const tries = [raw];
+  try { tries.push(decodeURIComponent(raw)); } catch {}
+  for (const value of [...tries]) {
+    // Sometimes JSON is returned as a quoted JSON string.
+    try {
+      const once = JSON.parse(value);
+      if (once && typeof once === 'object') return once;
+      if (typeof once === 'string' && once.trim()) {
+        try {
+          const twice = JSON.parse(once);
+          if (twice && typeof twice === 'object') return twice;
+        } catch {}
+      }
+    } catch {}
+  }
+  // Some deployments wrap the JSON payload in base64/base64url.
+  for (const value of tries) {
+    if (!/^[A-Za-z0-9+/_=-]{24,}$/.test(value)) continue;
+    for (const enc of ['base64url', 'base64']) {
+      try {
+        const decoded = Buffer.from(value, enc).toString('utf8').trim();
+        const parsed = JSON.parse(decoded);
+        if (parsed && typeof parsed === 'object') return parsed;
+      } catch {}
+    }
+  }
+  // Last resort: extract a JSON object/array embedded in surrounding text.
+  const starts = [raw.indexOf('{'), raw.indexOf('[')].filter((x) => x >= 0).sort((a,b)=>a-b);
+  if (starts.length) {
+    const start = starts[0];
+    for (let end = raw.length; end > start + 1; end--) {
+      const c = raw[end - 1];
+      if (c !== '}' && c !== ']') continue;
+      try {
+        const parsed = JSON.parse(raw.slice(start, end));
+        if (parsed && typeof parsed === 'object') return parsed;
+      } catch {}
+    }
+  }
+  return null;
+}
+
+export function normalizeScResponse(response) {
+  if (!response || typeof response !== 'object' || Array.isArray(response)) return response;
+  if (typeof response._raw !== 'string') return response;
+  return tryParseJsonText(response._raw) || response;
+}
+
+export function rawResponsePreview(response, max = 700) {
+  const raw = response && typeof response === 'object' && typeof response._raw === 'string' ? response._raw : '';
+  if (!raw) return null;
+  return raw
+    .replace(/([?&](?:krt|token|session_id|auth|uid)=)[^&\s"']+/gi, '$1***')
+    .replace(/(X-AUTH-TOKEN\s*[:=]\s*)[^\s"']+/gi, '$1***')
+    .slice(0, max);
+}
+
 export function menuItems(response) {
+  response = normalizeScResponse(response);
   const out = [];
   const seenObjects = new Set();
   const seenItems = new Set();
@@ -249,6 +311,7 @@ export function menuItems(response) {
 }
 
 export function responseShape(response) {
+  response = normalizeScResponse(response);
   if (response == null) return { type: String(response), keys: [], arrays: [] };
   if (Array.isArray(response)) return { type: 'array', keys: [], arrays: [{ path: '$', length: response.length }] };
   if (typeof response !== 'object') return { type: typeof response, keys: [], arrays: [] };
@@ -274,6 +337,7 @@ export function responseShape(response) {
 }
 
 export function streamItems(response) {
+  response = normalizeScResponse(response);
   const streams = response?.strms ?? response?.streams;
   return asArray(streams).filter((x) => x && typeof x === 'object');
 }

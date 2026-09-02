@@ -1,8 +1,8 @@
 {
   "name": "stremio-nuvio-kra-addon",
-  "version": "1.0.7",
+  "version": "2.0.0",
   "private": true,
-  "description": "Stremio/Nuvio stream addon using the KRA + Stream Cinema APIs used by the supplied Android app.",
+  "description": "Stremio/Nuvio addon reconstructed from supplied Stream Cinema/KRA Android APK with catalogs, metadata and streams.",
   "type": "module",
   "engines": {
     "node": ">=20"

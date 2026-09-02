@@ -146,6 +146,65 @@ export class StreamCinemaClient {
     }
   }
 
+  async getMenu(pathOrUrl, options = {}) {
+    const rawPath = String(pathOrUrl || '').trim();
+    if (!rawPath) throw new Error('Missing Stream Cinema menu path.');
+
+    // Absolute descriptor URLs from SC are fetched as-is.
+    if (/^https?:\/\//i.test(rawPath)) {
+      return this.get(rawPath);
+    }
+
+    const cleanPath = '/' + rawPath.replace(/^\/+/, '');
+    const q = new URLSearchParams();
+    if (options.skip != null) q.set('skip', String(options.skip));
+    if (options.page != null) q.set('page', String(options.page));
+
+    // APK menu entries use paths such as /FMovies/latest. The Android client
+    // resolves these through its Kodi API transport. Probe only equivalent
+    // transport forms and reject HTML error pages even if a server returns 200.
+    const candidates = [
+      `kodi${cleanPath}`,
+      `kodi${cleanPath}/`,
+      `kodi/Menu?url=${encodeURIComponent(cleanPath)}`,
+      `kodi/menu?url=${encodeURIComponent(cleanPath)}`,
+      `kodi?url=${encodeURIComponent(cleanPath)}`,
+      cleanPath.replace(/^\//, '')
+    ];
+
+    const attempts = [];
+    let lastError = null;
+    for (const base of candidates) {
+      let target = base;
+      if (q.size) target += (target.includes('?') ? '&' : '?') + q.toString();
+      try {
+        const data = await this.get(target);
+        const raw = data && typeof data === 'object' && typeof data._raw === 'string' ? data._raw.trim() : '';
+        const html = /^<!doctype html|^<html/i.test(raw);
+        const html404 = html && /404|not\s+found|error\s+page/i.test(raw.slice(0, 2500));
+        if (html404 || html) {
+          attempts.push({ path: target, status: 200, rejected: html404 ? 'html-404' : 'html' });
+          continue;
+        }
+        if (data && typeof data === 'object') {
+          Object.defineProperty(data, '__menuRoute', { value: target, enumerable: false });
+          Object.defineProperty(data, '__menuAttempts', { value: attempts, enumerable: false });
+        }
+        return data;
+      } catch (e) {
+        lastError = e;
+        attempts.push({ path: target, status: e instanceof HttpError ? e.status : null });
+        if (!(e instanceof HttpError) || ![400, 404, 405].includes(e.status)) throw e;
+      }
+    }
+    if (lastError instanceof HttpError) {
+      throw new HttpError('Stream Cinema menu route failed', lastError.status, { menuAttempts: attempts }, lastError.url);
+    }
+    const err = new Error('Stream Cinema menu route returned no API response.');
+    err.menuAttempts = attempts;
+    throw err;
+  }
+
   async search(type, query, imdbId = '') {
     const searchId = type === 'series' ? 'search-series' : 'search-movie';
     const mediaPath = type === 'series' ? 'FSeries/search' : 'FMovies/search';

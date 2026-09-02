@@ -5,7 +5,7 @@ import { decodeConfig, encodeConfig, configSecurityMode } from './src/config.js'
 import { KraClient } from './src/kra.js';
 import { HttpError } from './src/http.js';
 import { StreamCinemaClient } from './src/sc.js';
-import { getStreams, makeManifest, ADDON_VERSION } from './src/stremio.js';
+import { getStreams, getCatalog, getMeta, makeManifest, ADDON_VERSION } from './src/stremio.js';
 import { htmlEscape, safeMessage } from './src/utils.js';
 
 const PORT = Number(process.env.PORT || 3000);
@@ -184,7 +184,52 @@ const server = http.createServer(async (req, res) => {
           };
         }
       }
+      const catalogId = url.searchParams.get('catalog');
+      if (catalogId) {
+        const typeForCatalog = catalogId.includes('series') ? 'series' : 'movie';
+        try {
+          const c = await getCatalog(config, typeForCatalog, catalogId, { skip: 0 });
+          result.catalog = { id: catalogId, type: typeForCatalog, metaCount: c.metas.length, diagnostics: c.diagnostics };
+        } catch (e) {
+          result.ok = false;
+          result.catalog = { id: catalogId, type: typeForCatalog, metaCount: 0, error: safeMessage(e), upstream: safeUpstreamError(e), attempts: e?.menuAttempts || null };
+        }
+      }
       sendJson(res, 200, result); return;
+    }
+
+    const catalogMatch = path.match(/^\/([^/]+)\/catalog\/(movie|series)\/([^/]+)(?:\/([^/]+))?\.json$/);
+    if (req.method === 'GET' && catalogMatch) {
+      const [, token, type, catalogId, extraRaw] = catalogMatch;
+      const config = decodeConfig(token);
+      const extra = {};
+      if (extraRaw) {
+        const params = new URLSearchParams(extraRaw);
+        for (const [k,v] of params.entries()) extra[k] = v;
+      }
+      try {
+        const result = await getCatalog(config, type, catalogId, extra);
+        if (process.env.DEBUG === '1') console.log('[catalog]', type, catalogId, result.diagnostics);
+        sendJson(res, 200, { metas: result.metas });
+      } catch (e) {
+        console.error('[catalog error]', type, catalogId, safeMessage(e));
+        sendJson(res, 200, { metas: [] });
+      }
+      return;
+    }
+
+    const metaMatch = path.match(/^\/([^/]+)\/meta\/(movie|series)\/([^/]+)\.json$/);
+    if (req.method === 'GET' && metaMatch) {
+      const [, token, type, id] = metaMatch;
+      const config = decodeConfig(token);
+      try {
+        const meta = await getMeta(config, type, id);
+        sendJson(res, 200, { meta });
+      } catch (e) {
+        console.error('[meta error]', type, id, safeMessage(e));
+        sendJson(res, 200, { meta: null });
+      }
+      return;
     }
 
     const streamMatch = path.match(/^\/([^/]+)\/stream\/(movie|series)\/([^/]+)\.json$/);

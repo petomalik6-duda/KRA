@@ -1,93 +1,55 @@
-## v1.0.3
+# KRA • Stream Cinema APK addon v2.0.0
 
-Fix: exact APK search request now includes `ms=0` for movie/series title search.
+Stremio/Nuvio addon reconstructed from the supplied Android APK. Unlike the older stream-only bridge, this version exposes Stream Cinema catalog paths from the APK and uses local `sc:` IDs so titles opened from a catalog can be resolved directly without searching the title again.
 
-# KRA • Stream Cinema – Stremio / Nuvio addon
+## Features
 
-Stream-only addon reconstructed from the API contracts and playback logic in the supplied Android APK.
-It uses the user's own KRA account and Stream Cinema metadata/search. It does **not** contain a catalog; install it alongside Cinemeta or another movie/series catalog.
+- KRA login and session handling
+- Stream Cinema authentication
+- movie and series catalogs from the APK
+- local `sc:` IDs carrying the original SC navigation path
+- metadata route
+- series episode discovery by traversing the SC branch
+- KRA stream resolving
+- CZ/SK preference
+- encrypted configuration using `CONFIG_SECRET`
+- diagnostics for IMDb lookup and catalog transport
 
-## What is implemented
+## Catalogs
 
-- Stremio addon protocol for `movie` and `series`, IMDb IDs (`tt...`).
-- Series IDs in the standard `tt...:season:episode` form.
-- KRA login: `POST https://api.kra.sk/api/user/login`.
-- KRA subscription/account check: `/api/user/info`.
-- Stream Cinema authentication using the KRA session: `POST https://stream-cinema.online/kodi/auth/token`.
-- Stream Cinema search IDs `search-movie` and `search-series`.
-- The APK's request identity headers (`User-Agent` and `X-Uuid`).
-- The APK's `v0:`, `v1:` and `v2:` Stream Cinema identifier handling, including RSA/PKCS#1 signed-ident recovery before `/api/file/download`.
-- KRA stream resolving via `POST /api/file/download`.
-- Multiple streams, quality/language ordering, CZ/SK preference.
-- Encrypted configuration tokens when `CONFIG_SECRET` is set.
-- `/health` and per-install `/diagnostics.json` endpoints.
+Movies: Novinky, Novinky dabované, TOP dnes, TOP týždeň, Trendy, Najnovšie streamy.
 
-## Deploy on Render
+Series: Novinky, Novinky dabované, Najnovšie pridané, Najnovšie epizódy, TOP dnes, TOP týždeň, Trendy.
 
-1. Create a new GitHub repository and upload all files from this folder.
-2. In Render choose **New → Blueprint** and select the repository. `render.yaml` contains the service configuration.
-3. Render generates `CONFIG_SECRET` automatically. Do not remove it. If you deploy manually, create a long random `CONFIG_SECRET` yourself.
-4. When deployment is live, open:
+Other movie-type catalogs: HDR novinky, Dokumenty novinky, Koncerty novinky.
 
-   `https://YOUR-SERVICE.onrender.com/configure`
+See `APK_CATALOGS.md` for the paths extracted from the APK.
 
-5. Enter your KRA username/password. The configurator validates KRA login and Stream Cinema authentication before returning the addon URL.
-6. Install the returned manifest URL in Stremio. In Nuvio, add the same manifest URL as a Stremio-compatible addon.
+## Render
 
-## Diagnostics
+Recommended: deploy from `render.yaml` as a Blueprint. If using an existing Web Service, create a persistent environment variable named `CONFIG_SECRET` manually, for example with `openssl rand -base64 48`. Never change it after creating configured addon URLs.
 
-Basic server health:
+After deploy:
 
-`/health`
+1. Open `/health` and confirm version `2.0.0`.
+2. Open `/configure` and enter the user's own KRA credentials.
+3. Install the generated manifest in Stremio or Nuvio.
+4. Test a catalog.
 
-Configured account/API check:
+## Catalog diagnostics
 
-`/<CONFIG_TOKEN>/diagnostics.json`
+For the Movies / New catalog:
 
-Test a concrete title without exposing tokens in server logs:
+`/<CONFIG>/diagnostics.json?catalog=sc-movie-latest`
 
-`/<CONFIG_TOKEN>/diagnostics.json?type=movie&id=tt0133093`
+For Series / New:
 
-Series example:
+`/<CONFIG>/diagnostics.json?catalog=sc-series-new`
 
-`/<CONFIG_TOKEN>/diagnostics.json?type=series&id=tt1234567:1:1`
+The response reports the APK path, selected transport route, number of extracted items, response shape, and safe raw preview when relevant.
 
-The diagnostic response reports the stage (`search`, `branch`, `resolve`, or `ok`) and counts, but does not return the KRA password, KRA session, or Stream Cinema auth token.
+## Legacy IMDb stream diagnostics
 
-## Environment variables
+`/<CONFIG>/diagnostics.json?type=movie&id=tt0133093`
 
-- `PORT` – server port; Render sets it automatically.
-- `CONFIG_SECRET` – **required for production**; AES-256-GCM encrypts the config payload embedded in the manifest URL.
-- `DEBUG=1` – optional verbose logs. Sensitive query values are redacted where logging is performed.
-
-## Important notes
-
-- Upstream KRA / Stream Cinema APIs are private implementation details of the supplied app and can change without notice.
-- A valid KRA account/subscription is required.
-- Direct stream URLs can be short-lived, so the addon resolves them when Stremio/Nuvio requests streams rather than caching them long-term.
-- End-to-end playback cannot be validated without a real KRA account. Unit tests validate local routing/helpers and the identifier algorithm structure.
-
-## Local run
-
-Requires Node.js 20+.
-
-```bash
-export CONFIG_SECRET='choose-a-long-random-secret'
-npm start
-```
-
-Open `http://localhost:3000/configure`.
-
-Run tests:
-
-```bash
-npm test
-```
-
-
-### v1.0.2
-Search request now mirrors the Android APK exactly: `id` equals `search-movie`/`search-series`, `ms` is omitted for title search, and SC defaults use `HDR=1`, `DV=0`, `old=1`.
-
-
-## v1.0.4 search diagnostics
-If Stream Cinema returns HTTP 404 for the Retrofit search route, the addon safely probes the menu-compatible search route variants and caches the first successful route. If all variants return 404, `diagnostics.json` includes `upstream.body.searchAttempts` so the exact server behavior is visible without exposing credentials or tokens.
+The `tt...` compatibility path remains available, but the preferred flow is catalog -> local `sc:` id -> direct SC branch -> KRA stream.

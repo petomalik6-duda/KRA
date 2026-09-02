@@ -91,11 +91,20 @@ function commonQuery(url, config) {
   return url;
 }
 
-function commonHeaders(config, authToken = null) {
+function commonHeaders(config, authToken = null, profile = 'android') {
   const headers = {
     'User-Agent': APP_USER_AGENT,
-    'X-Uuid': config.uid
+    'X-Uuid': config.uid,
+    'X-Device-Accept-Language': SC_LANGUAGE
   };
+  if (profile === 'android') {
+    headers['Accept'] = 'application/json';
+  } else if (profile === 'legacy-kodi') {
+    headers['X-UID'] = config.uid;
+    headers['X-LANG'] = SC_LANGUAGE;
+    headers['X-VER'] = SC_VERSION;
+    headers['Accept'] = `application/vnd.bbaron.kodi-plugin-v${SC_VERSION}+json`;
+  }
   if (authToken) headers['X-AUTH-TOKEN'] = authToken;
   return headers;
 }
@@ -128,7 +137,7 @@ export class StreamCinemaClient {
     return data.token;
   }
 
-  async get(pathOrUrl, forceAuth = false) {
+  async get(pathOrUrl, forceAuth = false, headerProfile = 'android') {
     const authToken = await this.getAuthToken(forceAuth);
     let url;
     try { url = new URL(pathOrUrl, SC_BASE); }
@@ -136,11 +145,11 @@ export class StreamCinemaClient {
     if (url.origin !== new URL(SC_BASE).origin) throw new Error(`Refusing non-Stream-Cinema menu URL: ${url.origin}`);
     commonQuery(url, this.config);
     try {
-      return await fetchJson(url, { headers: commonHeaders(this.config, authToken) });
+      return await fetchJson(url, { headers: commonHeaders(this.config, authToken, headerProfile) });
     } catch (e) {
       if (!forceAuth && e instanceof HttpError && [401, 403].includes(e.status)) {
         this.clearAuth();
-        return this.get(pathOrUrl, true);
+        return this.get(pathOrUrl, true, headerProfile);
       }
       throw e;
     }
@@ -177,27 +186,31 @@ export class StreamCinemaClient {
 
     const attempts = [];
     let lastError = null;
+    const profiles = ['android', 'legacy-kodi'];
     for (const base of candidates) {
       let target = base;
       if (q.size) target += (target.includes('?') ? '&' : '?') + q.toString();
-      try {
-        const data = await this.get(target);
-        const raw = data && typeof data === 'object' && typeof data._raw === 'string' ? data._raw.trim() : '';
-        const html = /^<!doctype html|^<html/i.test(raw);
-        const html404 = html && /404|not\s+found|error\s+page/i.test(raw.slice(0, 2500));
-        if (html404 || html) {
-          attempts.push({ path: target, status: 200, rejected: html404 ? 'html-404' : 'html' });
-          continue;
+      for (const profile of profiles) {
+        try {
+          const data = await this.get(target, false, profile);
+          const raw = data && typeof data === 'object' && typeof data._raw === 'string' ? data._raw.trim() : '';
+          const html = /^<!doctype html|^<html/i.test(raw);
+          const html404 = html && /404|not\s+found|error\s+page/i.test(raw.slice(0, 2500));
+          if (html404 || html) {
+            attempts.push({ path: target, profile, status: 200, rejected: html404 ? 'html-404' : 'html' });
+            continue;
+          }
+          if (data && typeof data === 'object') {
+            Object.defineProperty(data, '__menuRoute', { value: target, enumerable: false });
+            Object.defineProperty(data, '__menuHeaderProfile', { value: profile, enumerable: false });
+            Object.defineProperty(data, '__menuAttempts', { value: attempts, enumerable: false });
+          }
+          return data;
+        } catch (e) {
+          lastError = e;
+          attempts.push({ path: target, profile, status: e instanceof HttpError ? e.status : null });
+          if (!(e instanceof HttpError) || ![400, 404, 405, 406, 415].includes(e.status)) throw e;
         }
-        if (data && typeof data === 'object') {
-          Object.defineProperty(data, '__menuRoute', { value: target, enumerable: false });
-          Object.defineProperty(data, '__menuAttempts', { value: attempts, enumerable: false });
-        }
-        return data;
-      } catch (e) {
-        lastError = e;
-        attempts.push({ path: target, status: e instanceof HttpError ? e.status : null });
-        if (!(e instanceof HttpError) || ![400, 404, 405].includes(e.status)) throw e;
       }
     }
     if (lastError instanceof HttpError) {

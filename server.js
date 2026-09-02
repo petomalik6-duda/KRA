@@ -7,6 +7,7 @@ import { HttpError } from './src/http.js';
 import { StreamCinemaClient } from './src/sc.js';
 import { getStreams, getCatalog, getMeta, makeManifest, ADDON_VERSION, CATALOGS } from './src/stremio.js';
 import { enrichMetaWithTmdb, tmdbConfigured } from './src/tmdb.js';
+import { enrichMetaWithCsfd, csfdConfigured } from './src/csfd.js';
 import { htmlEscape, safeMessage } from './src/utils.js';
 
 const PORT = Number(process.env.PORT || 3000);
@@ -25,7 +26,7 @@ async function bridgeJson(relativePath) {
   const target = `${base}/${clean}`;
   const r = await fetch(target, {
     signal: AbortSignal.timeout(20000),
-    headers: { Accept: 'application/json', 'User-Agent': 'Stremio-KRA-Bridge/2.6.0' }
+    headers: { Accept: 'application/json', 'User-Agent': 'Stremio-KRA-Bridge/2.7.0' }
   });
   const text = await r.text();
   if (!r.ok) {
@@ -268,6 +269,7 @@ f.addEventListener('submit',async(e)=>{e.preventDefault();out.innerHTML='<p>Over
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204, corsHeaders()); res.end(); return; }
   const url = new URL(req.url, baseUrl(req));
+  const rawPath = url.pathname;
   const path = decodeURIComponent(url.pathname);
 
   try {
@@ -278,7 +280,7 @@ const server = http.createServer(async (req, res) => {
       sendHtml(res, 200, configurePage(req)); return;
     }
     if (req.method === 'GET' && path === '/health') {
-      sendJson(res, 200, { ok: true, version: ADDON_VERSION, node: process.version, configSecurity: configSecurityMode(), bridge: Boolean(bridgeBase()), bridgeBaseConfigured: Boolean(bridgeBase()), tmdb: tmdbConfigured(), at: new Date().toISOString() }); return;
+      sendJson(res, 200, { ok: true, version: ADDON_VERSION, node: process.version, configSecurity: configSecurityMode(), bridge: Boolean(bridgeBase()), bridgeBaseConfigured: Boolean(bridgeBase()), tmdb: tmdbConfigured(), csfd: csfdConfigured(), at: new Date().toISOString() }); return;
     }
     if (req.method === 'GET' && path === '/bridge-check.json') {
       if (!bridgeBase()) { sendJson(res, 200, { ok:false, bridge:false, error:'UPSTREAM_STREMIO_BASE is not configured.' }); return; }
@@ -313,6 +315,14 @@ const server = http.createServer(async (req, res) => {
       }
       return;
     }
+    if (req.method === 'GET' && path === '/route-check.json') {
+      const sample = 'sc:test/path';
+      const encoded = encodeURIComponent(sample);
+      const synthetic = `/v1.demo/stream/movie/${encoded}.json`;
+      const m = synthetic.match(/^\/([^/]+)\/stream\/(movie|series)\/([^/]+)\.json$/);
+      sendJson(res, 200, { ok:Boolean(m), version:ADDON_VERSION, sampleId:sample, encodedId:encoded, decodedId:m?decodeURIComponent(m[3]):null }); return;
+    }
+
     if (req.method === 'GET' && path === '/manifest.json') {
       sendJson(res, 200, makeManifest(false)); return;
     }
@@ -439,9 +449,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const metaMatch = path.match(/^\/([^/]+)\/meta\/(movie|series)\/([^/]+)\.json$/);
+    const metaMatch = rawPath.match(/^\/([^/]+)\/meta\/(movie|series)\/([^/]+)\.json$/);
     if (req.method === 'GET' && metaMatch) {
-      const [, token, type, id] = metaMatch;
+      const [, tokenRaw, type, idRaw] = metaMatch;
+      const token = decodeURIComponent(tokenRaw);
+      const id = decodeURIComponent(idRaw);
       const config = decodeConfig(token);
       try {
         const cached = cachedBridgeMeta(type, id);
@@ -458,6 +470,7 @@ const server = http.createServer(async (req, res) => {
         if (!baseMeta) baseMeta = { id, type, name: String(id) };
 
         let meta = await enrichMetaWithTmdb(type, lookupId, baseMeta);
+        meta = await enrichMetaWithCsfd(type, lookupId, meta);
         // The detail response MUST keep the exact catalog ID, otherwise Stremio/Nuvio
         // loses the link from catalog -> meta -> stream.
         meta = { ...meta, id, type };
@@ -470,9 +483,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const streamMatch = path.match(/^\/([^/]+)\/stream\/(movie|series)\/([^/]+)\.json$/);
+    const streamMatch = rawPath.match(/^\/([^/]+)\/stream\/(movie|series)\/([^/]+)\.json$/);
     if (req.method === 'GET' && streamMatch) {
-      const [, token, type, id] = streamMatch;
+      const [, tokenRaw, type, idRaw] = streamMatch;
+      const token = decodeURIComponent(tokenRaw);
+      const id = decodeURIComponent(idRaw);
       const config = decodeConfig(token);
       try {
         // First preserve the exact cder catalog ID. This is the most important path.

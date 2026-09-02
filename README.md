@@ -1,4 +1,4 @@
-# v2.6.0 – APK identity-compatible bridge
+# v2.6.1 – APK identity-compatible bridge
 
 This build keeps cder catalog IDs and behaviorHints untouched. TMDB enrichment never changes the ID used for stream resolution. APK-derived native branches include `/FMovies/latestd`, `/FSeries/latestd`, and `/FKoncert/latest`.
 
@@ -84,3 +84,12 @@ The manifest includes the base cder catalogs plus derived year/genre catalogs, C
 - Meta route works even when upstream cder Meta is disabled: it falls back to cached preview + TMDB enrichment.
 - TMDB-enriched meta always returns the original catalog ID, preventing broken catalog/detail/stream links.
 - Stream route tries the original cder ID first, then an IMDb alias if one is available.
+
+## Metadata priority in v2.7.0
+Detail metadata are enriched in this order: original cder metadata -> TMDB -> ČSFD. ČSFD is applied last, so a confidently matched ČSFD detail can override title, poster, description, genres, country and rating. The catalog/stream ID is never changed by metadata enrichment.
+
+Environment:
+- `TMDB_API_KEY` or `TMDB_READ_ACCESS_TOKEN` enables TMDB enrichment.
+- `CSFD_ENRICH=1` enables best-effort ČSFD lookup (default); set `CSFD_ENRICH=0` to disable it.
+
+ČSFD matching uses an existing ČSFD link when upstream already supplies one. Otherwise it searches by title and year and only accepts a sufficiently strong match. Results are cached for 24 hours. If ČSFD is unavailable or cannot be matched confidently, TMDB/original metadata remain unchanged.

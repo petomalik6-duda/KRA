@@ -21,7 +21,7 @@ import {
 } from './utils.js';
 
 export const ADDON_ID = 'org.stream-cinema.online';
-export const ADDON_VERSION = '2.2.0';
+export const ADDON_VERSION = '2.2.1';
 
 export const CATALOGS = [
   { id:'sc-movie-latest', type:'movie', name:'⏳ SC: Najnovšie filmy', path:'/FMovies/latest', extra:[{name:'skip',isRequired:false}] },

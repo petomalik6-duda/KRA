@@ -18,15 +18,24 @@ function bridgeBase() {
 async function bridgeJson(relativePath) {
   const base = bridgeBase();
   if (!base) return null;
-  const target = `${base}/${String(relativePath).replace(/^\/+/, '')}`;
+  const clean = String(relativePath).replace(/^\/+/, '');
+  const target = `${base}/${clean}`;
   const r = await fetch(target, {
     signal: AbortSignal.timeout(20000),
-    headers: { Accept: 'application/json', 'User-Agent': 'Stremio-KRA-Bridge/2.2.0' }
+    headers: { Accept: 'application/json', 'User-Agent': 'Stremio-KRA-Bridge/2.2.1' }
   });
   const text = await r.text();
-  if (!r.ok) throw new Error(`Upstream bridge HTTP ${r.status}`);
+  if (!r.ok) {
+    const err = new Error(`Upstream bridge HTTP ${r.status}`);
+    err.bridge = { status: r.status, path: clean };
+    throw err;
+  }
   try { return JSON.parse(text); }
-  catch { throw new Error('Upstream bridge returned non-JSON response.'); }
+  catch {
+    const err = new Error('Upstream bridge returned non-JSON response.');
+    err.bridge = { status: r.status, path: clean, preview: text.slice(0, 240) };
+    throw err;
+  }
 }
 
 
@@ -146,7 +155,25 @@ const server = http.createServer(async (req, res) => {
       sendHtml(res, 200, configurePage(req)); return;
     }
     if (req.method === 'GET' && path === '/health') {
-      sendJson(res, 200, { ok: true, version: ADDON_VERSION, node: process.version, configSecurity: configSecurityMode(), bridge: Boolean(bridgeBase()), at: new Date().toISOString() }); return;
+      sendJson(res, 200, { ok: true, version: ADDON_VERSION, node: process.version, configSecurity: configSecurityMode(), bridge: Boolean(bridgeBase()), bridgeBaseConfigured: Boolean(bridgeBase()), at: new Date().toISOString() }); return;
+    }
+    if (req.method === 'GET' && path === '/bridge-check.json') {
+      if (!bridgeBase()) { sendJson(res, 200, { ok:false, bridge:false, error:'UPSTREAM_STREMIO_BASE is not configured.' }); return; }
+      try {
+        const upstreamManifest = await bridgeJson('manifest.json');
+        const latest = await bridgeJson('catalog/movie/sc-movie-latest.json');
+        const count = Array.isArray(latest?.metas) ? latest.metas.length : 0;
+        sendJson(res, 200, {
+          ok: count > 0,
+          bridge: true,
+          upstreamAddon: { id: upstreamManifest?.id || null, version: upstreamManifest?.version || null, catalogs: Array.isArray(upstreamManifest?.catalogs) ? upstreamManifest.catalogs.length : 0 },
+          latestMovieCount: count,
+          hint: count > 0 ? 'Bridge catalogs are working.' : 'The cder bridge responded, but the catalog is empty. Re-create the cder configuration with enable_catalog enabled.'
+        });
+      } catch (e) {
+        sendJson(res, 200, { ok:false, bridge:true, error:safeMessage(e), upstream:e?.bridge || null });
+      }
+      return;
     }
     if (req.method === 'GET' && path === '/manifest.json') {
       sendJson(res, 200, makeManifest(false)); return;
@@ -222,11 +249,26 @@ const server = http.createServer(async (req, res) => {
       if (catalogId) {
         const typeForCatalog = catalogId.includes('series') ? 'series' : 'movie';
         try {
-          const c = await getCatalog(config, typeForCatalog, catalogId, { skip: 0 });
-          result.catalog = { id: catalogId, type: typeForCatalog, metaCount: c.metas.length, diagnostics: c.diagnostics };
+          const bridgePath = bridgeCatalogPath(typeForCatalog, catalogId, { skip: 0 });
+          if (bridgeBase() && bridgePath) {
+            const bridged = await bridgeJson(bridgePath);
+            const metas = Array.isArray(bridged?.metas) ? bridged.metas : [];
+            result.catalog = {
+              id: catalogId,
+              type: typeForCatalog,
+              source: 'cder-bridge',
+              bridgePath,
+              metaCount: metas.length,
+              sample: metas.slice(0, 3).map(m => ({ id:m?.id || null, name:m?.name || null, type:m?.type || null })),
+              hint: metas.length ? null : 'Bridge returned an empty catalog. The upstream cder configuration may have Catalog disabled (enable_catalog=0).'
+            };
+          } else {
+            const c = await getCatalog(config, typeForCatalog, catalogId, { skip: 0 });
+            result.catalog = { id: catalogId, type: typeForCatalog, source:'native', metaCount: c.metas.length, diagnostics: c.diagnostics };
+          }
         } catch (e) {
           result.ok = false;
-          result.catalog = { id: catalogId, type: typeForCatalog, metaCount: 0, error: safeMessage(e), upstream: safeUpstreamError(e), attempts: e?.menuAttempts || null };
+          result.catalog = { id: catalogId, type: typeForCatalog, source:bridgeBase()?'cder-bridge':'native', metaCount: 0, error: safeMessage(e), upstream: e?.bridge || safeUpstreamError(e), attempts: e?.menuAttempts || null };
         }
       }
       sendJson(res, 200, result); return;

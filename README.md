@@ -52,3 +52,7 @@ Okrem pôvodných cder katalógov táto verzia pridáva odvodené katalógy pod�
 Filmy: 2026, 2025, Akčné, Komédie, Horory, Sci‑Fi, Krimi, Thrillery, Dokumenty, Animované, Rodinné, Romantické.
 
 Seriály: 2026, 2025, Dráma, Komédie, Krimi, Sci‑Fi, Thriller, Dokumentárne, Animované.
+
+
+## Bridge catalog check (v2.2.1)
+Open `/bridge-check.json`. If `latestMovieCount` is 0, the configured cder profile likely has Catalog disabled. Create/obtain a cder configuration with `enable_catalog` enabled and set its base URL as `UPSTREAM_STREMIO_BASE`. `diagnostics.json?catalog=sc-movie-latest` now tests the bridge itself, not the native fallback.

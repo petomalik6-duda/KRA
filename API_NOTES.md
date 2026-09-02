@@ -66,9 +66,9 @@ Default API arguments recovered from Kotlin default methods:
 - `ver=2.0`
 - `lang=sk`
 - `skin=skin.estuary`
-- `HDR=0`
+- `HDR=1`
 - `DV=0`
-- `old=0`
+- `old=1`
 - persistent `uid`
 
 ### Auth token
@@ -117,3 +117,17 @@ Behavior recovered from `decryptStreamCinemaIdent`:
 - unsupported versions: reject
 
 The public RSA modulus and exponent (`0x10001`) are embedded in the APK and reproduced in `src/sc.js`. The recovered plaintext is the actual `ident` passed to KRA `api/file/download`.
+
+
+## Search request verified from APK bytecode (v1.0.2)
+
+For normal title search the Android app calls:
+
+- path: `kodi/Search/search-movie` or `kodi/Search/search-series`
+- `search=<title>`
+- `id=search-movie` / `id=search-series` (the same value as the path parameter)
+- `ms` omitted for title search
+- `ms=1` only for `search-people*`
+- defaults: `ver=2.0`, `lang=sk`, `skin=skin.estuary`, `HDR=1`, `DV=0`, `old=1`
+
+The `id` parameter is **not** an IMDb ID.

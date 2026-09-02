@@ -84,9 +84,9 @@ function commonQuery(url, config) {
   if (!url.searchParams.has('uid')) url.searchParams.set('uid', config.uid);
   if (!url.searchParams.has('lang')) url.searchParams.set('lang', SC_LANGUAGE);
   if (!url.searchParams.has('skin')) url.searchParams.set('skin', SC_SKIN);
-  if (!url.searchParams.has('HDR')) url.searchParams.set('HDR', '0');
+  if (!url.searchParams.has('HDR')) url.searchParams.set('HDR', '1');
   if (!url.searchParams.has('DV')) url.searchParams.set('DV', '0');
-  if (!url.searchParams.has('old')) url.searchParams.set('old', '0');
+  if (!url.searchParams.has('old')) url.searchParams.set('old', '1');
   return url;
 }
 
@@ -148,28 +148,16 @@ export class StreamCinemaClient {
   async search(type, query, imdbId = '') {
     const searchId = type === 'series' ? 'search-series' : 'search-movie';
 
-    // The APK declares GET kodi/Search/{searchId}. Different SC backend revisions
-    // have treated the optional `id` query differently, so try the minimal
-    // request first and only add `id` as compatibility fallbacks on HTTP 404.
-    const attempts = [
-      null,
-      searchId,
-      imdbId || null
-    ].filter((v, i, a) => i === 0 || (v && a.indexOf(v) === i));
-
-    let lastError = null;
-    for (const idValue of attempts) {
-      const url = new URL(`kodi/Search/${searchId}`, SC_BASE);
-      url.searchParams.set('search', query);
-      if (idValue) url.searchParams.set('id', idValue);
-      try {
-        return await this.get(url.toString());
-      } catch (e) {
-        lastError = e;
-        if (!(e instanceof HttpError) || e.status !== 404) throw e;
-      }
-    }
-    throw lastError || new Error('Stream Cinema search failed.');
+    // Exact request reconstructed from ContentRepository.searchInternal in the APK:
+    //   GET kodi/Search/{searchId}
+    //   search=<typed title>
+    //   id=<same searchId>
+    //   ms is null/omitted for title search; ms=1 only for search-people*.
+    // The Android app does NOT put IMDb ID into the `id` query parameter.
+    const url = new URL(`kodi/Search/${searchId}`, SC_BASE);
+    url.searchParams.set('search', query);
+    url.searchParams.set('id', searchId);
+    return this.get(url.toString());
   }
 }
 

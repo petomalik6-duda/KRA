@@ -79,3 +79,7 @@ Run tests:
 ```bash
 npm test
 ```
+
+
+### v1.0.2
+Search request now mirrors the Android APK exactly: `id` equals `search-movie`/`search-series`, `ms` is omitted for title search, and SC defaults use `HDR=1`, `DV=0`, `old=1`.

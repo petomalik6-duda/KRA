@@ -6,6 +6,7 @@ import {
   menuItems,
   rankSearchCandidates,
   rankTraversalItems,
+  responseShape,
   streamItems,
   versionIdent
 } from './sc.js';
@@ -19,7 +20,7 @@ import {
 } from './utils.js';
 
 export const ADDON_ID = 'community.kra.streamcinema.bridge';
-export const ADDON_VERSION = '1.0.5';
+export const ADDON_VERSION = '1.0.6';
 
 export function makeManifest(configured = false) {
   return {

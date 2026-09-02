@@ -59,6 +59,22 @@ export class KraClient {
     }
   }
 
+  async listFiles(filter = null, parent = null) {
+    const call = async (force = false) => {
+      const sessionId = await this.login(force);
+      return fetchJson(new URL('api/file/list', KRA_BASE), {
+        method: 'POST',
+        headers: commonHeaders(this.config),
+        json: { data: { parent, filter }, session_id: sessionId }
+      });
+    };
+    try { return await call(false); }
+    catch (e) {
+      if (e instanceof HttpError && [401, 403].includes(e.status)) return call(true);
+      throw e;
+    }
+  }
+
   async resolveIdent(ident) {
     if (!ident) throw new Error('Empty KRA ident.');
     const call = async (force = false) => {

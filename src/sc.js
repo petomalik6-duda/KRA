@@ -80,31 +80,24 @@ export function versionIdent(response) {
   return null;
 }
 
-function commonQuery(url, config) {
+function commonQuery(url, config, options = {}) {
+  // Mirror current ArchivCZSK Stream Cinema 3.30 defaults as closely as possible.
   if (!url.searchParams.has('ver')) url.searchParams.set('ver', SC_VERSION);
   if (!url.searchParams.has('uid')) url.searchParams.set('uid', config.uid);
   if (!url.searchParams.has('lang')) url.searchParams.set('lang', SC_LANGUAGE);
-  if (!url.searchParams.has('skin')) url.searchParams.set('skin', SC_SKIN);
+  if (!url.searchParams.has('gen')) url.searchParams.set('gen', '0');
   if (!url.searchParams.has('HDR')) url.searchParams.set('HDR', '1');
   if (!url.searchParams.has('DV')) url.searchParams.set('DV', '0');
-  if (!url.searchParams.has('old')) url.searchParams.set('old', '1');
+  // Current maintained addon does NOT send skin and only sends old=1 when old-menu is enabled.
+  if (options.oldMenu && !url.searchParams.has('old')) url.searchParams.set('old', '1');
   return url;
 }
 
-function commonHeaders(config, authToken = null, profile = 'android') {
+function commonHeaders(config, authToken = null) {
   const headers = {
-    'User-Agent': APP_USER_AGENT,
-    'X-Uuid': config.uid,
-    'X-Device-Accept-Language': SC_LANGUAGE
+    'User-Agent': 'ArchivCZSK/2.0.0 (plugin.video.stream-cinema/3.30)',
+    'X-Uuid': config.uid
   };
-  if (profile === 'android') {
-    headers['Accept'] = 'application/json';
-  } else if (profile === 'legacy-kodi') {
-    headers['X-UID'] = config.uid;
-    headers['X-LANG'] = SC_LANGUAGE;
-    headers['X-VER'] = SC_VERSION;
-    headers['Accept'] = `application/vnd.bbaron.kodi-plugin-v${SC_VERSION}+json`;
-  }
   if (authToken) headers['X-AUTH-TOKEN'] = authToken;
   return headers;
 }
@@ -120,36 +113,70 @@ export class StreamCinemaClient {
 
   clearAuth() { authCache.delete(this.key); }
 
+  async validateAuthToken(token) {
+    const url = new URL('kodi/', SC_BASE);
+    commonQuery(url, this.config);
+    try {
+      const data = await fetchJson(url, { headers: commonHeaders(this.config, token) });
+      return { ok: true, data };
+    } catch (e) {
+      return { ok: false, error: e };
+    }
+  }
+
   async getAuthToken(force = false) {
     const cached = authCache.get(this.key);
-    if (!force && cached?.token && Date.now() - cached.createdAt < AUTH_TTL_MS) return cached.token;
+    if (!force && cached?.token && Date.now() - cached.createdAt < AUTH_TTL_MS) {
+      const check = await this.validateAuthToken(cached.token);
+      if (check.ok) return cached.token;
+      authCache.delete(this.key);
+    }
+
     const kraToken = await this.kra.login(force);
     const url = new URL('kodi/auth/token', SC_BASE);
     url.searchParams.set('krt', kraToken);
     commonQuery(url, this.config);
+
+    // Current Stream Cinema 3.30 uses POST with an empty body, not JSON.
     const data = await fetchJson(url, {
       method: 'POST',
-      headers: commonHeaders(this.config)
+      headers: commonHeaders(this.config),
+      body: ''
     });
     if (!data?.token) throw new Error(`Stream Cinema authentication failed${data?.error ? `: ${data.error}` : ''}`);
+
+    // The maintained plugin waits before validating a freshly issued token.
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    const validation = await this.validateAuthToken(data.token);
+    if (!validation.ok) {
+      const e = validation.error;
+      const status = e instanceof HttpError ? e.status : null;
+      throw new Error(`Stream Cinema returned a token but it is not valid yet${status ? ` (HTTP ${status})` : ''}. The account may need token validation/approval.`);
+    }
+
     authCache.set(this.key, { token: data.token, createdAt: Date.now() });
-    debug('Stream Cinema auth OK');
+    debug('Stream Cinema auth token validated OK');
     return data.token;
   }
 
-  async get(pathOrUrl, forceAuth = false, headerProfile = 'android') {
+  async get(pathOrUrl, forceAuth = false) {
     const authToken = await this.getAuthToken(forceAuth);
     let url;
-    try { url = new URL(pathOrUrl, SC_BASE); }
-    catch { throw new Error(`Invalid Stream Cinema URL: ${pathOrUrl}`); }
-    if (url.origin !== new URL(SC_BASE).origin) throw new Error(`Refusing non-Stream-Cinema menu URL: ${url.origin}`);
+    try {
+      if (/^https?:\/\//i.test(String(pathOrUrl))) url = new URL(pathOrUrl);
+      else {
+        const clean = '/' + String(pathOrUrl || '').replace(/^\/+/, '');
+        url = new URL('kodi' + clean, SC_BASE);
+      }
+    } catch { throw new Error(`Invalid Stream Cinema URL: ${pathOrUrl}`); }
+    if (url.origin !== new URL(SC_BASE).origin) throw new Error(`Refusing non-Stream-Cinema URL: ${url.origin}`);
     commonQuery(url, this.config);
     try {
-      return await fetchJson(url, { headers: commonHeaders(this.config, authToken, headerProfile) });
+      return await fetchJson(url, { headers: commonHeaders(this.config, authToken) });
     } catch (e) {
-      if (!forceAuth && e instanceof HttpError && [401, 403].includes(e.status)) {
+      if (!forceAuth && e instanceof HttpError && [401, 403, 404].includes(e.status)) {
         this.clearAuth();
-        return this.get(pathOrUrl, true, headerProfile);
+        return this.get(pathOrUrl, true);
       }
       throw e;
     }
@@ -159,125 +186,34 @@ export class StreamCinemaClient {
     const rawPath = String(pathOrUrl || '').trim();
     if (!rawPath) throw new Error('Missing Stream Cinema menu path.');
 
-    // Absolute descriptor URLs from SC are fetched as-is.
-    if (/^https?:\/\//i.test(rawPath)) {
-      return this.get(rawPath);
-    }
+    if (/^https?:\/\//i.test(rawPath)) return this.get(rawPath);
 
     const cleanPath = '/' + rawPath.replace(/^\/+/, '');
-    const q = new URLSearchParams();
-    if (options.skip != null) q.set('skip', String(options.skip));
-    if (options.page != null) q.set('page', String(options.page));
-
-    // APK menu entries use paths such as /FMovies/latest. The Android client
-    // resolves these through its Kodi API transport. Probe only equivalent
-    // transport forms and reject HTML error pages even if a server returns 200.
-    const candidates = [
-      // APK Retrofit literal is `kodi/` (with trailing slash). Menu path is
-      // supplied as the `url` query parameter. Keep this exact form first.
-      `kodi/?url=${encodeURIComponent(cleanPath)}`,
-      `kodi?url=${encodeURIComponent(cleanPath)}`,
-      `kodi${cleanPath}`,
-      `kodi${cleanPath}/`,
-      `kodi/Menu?url=${encodeURIComponent(cleanPath)}`,
-      `kodi/menu?url=${encodeURIComponent(cleanPath)}`,
-      cleanPath.replace(/^\//, '')
-    ];
-
-    const attempts = [];
-    let lastError = null;
-    const profiles = ['android', 'legacy-kodi'];
-    for (const base of candidates) {
-      let target = base;
-      if (q.size) target += (target.includes('?') ? '&' : '?') + q.toString();
-      for (const profile of profiles) {
-        try {
-          const data = await this.get(target, false, profile);
-          const raw = data && typeof data === 'object' && typeof data._raw === 'string' ? data._raw.trim() : '';
-          const html = /^<!doctype html|^<html/i.test(raw);
-          const html404 = html && /404|not\s+found|error\s+page/i.test(raw.slice(0, 2500));
-          if (html404 || html) {
-            attempts.push({ path: target, profile, status: 200, rejected: html404 ? 'html-404' : 'html' });
-            continue;
-          }
-          if (data && typeof data === 'object') {
-            Object.defineProperty(data, '__menuRoute', { value: target, enumerable: false });
-            Object.defineProperty(data, '__menuHeaderProfile', { value: profile, enumerable: false });
-            Object.defineProperty(data, '__menuAttempts', { value: attempts, enumerable: false });
-          }
-          return data;
-        } catch (e) {
-          lastError = e;
-          attempts.push({ path: target, profile, status: e instanceof HttpError ? e.status : null });
-          if (!(e instanceof HttpError) || ![400, 404, 405, 406, 415].includes(e.status)) throw e;
-        }
-      }
+    const url = new URL('kodi' + cleanPath, SC_BASE);
+    if (options.skip != null) url.searchParams.set('skip', String(options.skip));
+    if (options.page != null) url.searchParams.set('page', String(options.page));
+    const data = await this.get(url.toString());
+    if (data && typeof data === 'object') {
+      Object.defineProperty(data, '__menuRoute', { value: url.pathname + url.search, enumerable: false });
+      Object.defineProperty(data, '__menuAttempts', { value: [{ path: url.pathname + url.search, profile: 'archivczsk-3.30', status: 200 }], enumerable: false });
     }
-    if (lastError instanceof HttpError) {
-      throw new HttpError('Stream Cinema menu route failed', lastError.status, { menuAttempts: attempts }, lastError.url);
-    }
-    const err = new Error('Stream Cinema menu route returned no API response.');
-    err.menuAttempts = attempts;
-    throw err;
+    return data;
   }
 
   async search(type, query, imdbId = '') {
     const searchId = type === 'series' ? 'search-series' : 'search-movie';
-    const mediaPath = type === 'series' ? 'FSeries/search' : 'FMovies/search';
-
-    // The APK exposes two pieces of information:
-    //  1) Retrofit: GET kodi/Search/{searchId}
-    //  2) static menu: /FMovies/search or /FSeries/search with action id search-movie/search-series.
-    // Some SC deployments route one form and return 404 for the other, so probe safe GET
-    // variants on 404 and cache the first one that works. This avoids guessing forever.
-    const candidates = [
-      `kodi/Search/${searchId}`,
-      `kodi/Search/${searchId}/`,
-      `kodi/${mediaPath}`,
-      mediaPath,
-      `Search/${searchId}`,
-      `Search/${searchId}/`
-    ];
-    const cacheKey = type;
-    const cached = searchPathCache.get(cacheKey);
-    if (cached) {
-      const i = candidates.indexOf(cached);
-      if (i > 0) candidates.unshift(candidates.splice(i, 1)[0]);
+    const url = new URL(`kodi/Search/${searchId}`, SC_BASE);
+    url.searchParams.set('search', query);
+    url.searchParams.set('id', searchId);
+    url.searchParams.set('ms', '0');
+    const data = await this.get(url.toString());
+    if (data && typeof data === 'object') {
+      Object.defineProperty(data, '__searchRoute', { value: `/kodi/Search/${searchId}`, enumerable: false });
     }
-
-    const attempts = [];
-    let lastError = null;
-    for (const path of candidates) {
-      const url = new URL(path, SC_BASE);
-      url.searchParams.set('search', query);
-      url.searchParams.set('id', searchId);
-      url.searchParams.set('ms', '0');
-      try {
-        const data = await this.get(url.toString());
-        searchPathCache.set(cacheKey, path);
-        if (data && typeof data === 'object') {
-          Object.defineProperty(data, '__searchRoute', { value: path, enumerable: false });
-        }
-        return data;
-      } catch (e) {
-        lastError = e;
-        attempts.push({ path: url.pathname, status: e instanceof HttpError ? e.status : null });
-        if (!(e instanceof HttpError) || e.status !== 404) throw e;
-      }
-    }
-
-    if (lastError instanceof HttpError) {
-      throw new HttpError(
-        'HTTP 404 on all Stream Cinema search route variants',
-        404,
-        { searchAttempts: attempts },
-        lastError.url
-      );
-    }
-    throw lastError || new Error('Stream Cinema search failed.');
+    return data;
   }
-}
 
+}
 
 function tryParseJsonText(text) {
   const raw = String(text ?? '').replace(/^\uFEFF/, '').trim();

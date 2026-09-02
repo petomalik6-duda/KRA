@@ -21,7 +21,7 @@ import {
 } from './utils.js';
 
 export const ADDON_ID = 'community.kra.streamcinema.apk';
-export const ADDON_VERSION = '2.0.2';
+export const ADDON_VERSION = '2.0.4';
 
 export const CATALOGS = [
   { id:'sc-movie-latest', type:'movie', name:'SC • Filmy • Novinky', path:'/FMovies/latest' },

@@ -1,4 +1,4 @@
-# KRA • Stream Cinema APK addon v2.0.0
+# KRA • Stream Cinema APK addon v2.0.4
 
 Stremio/Nuvio addon reconstructed from the supplied Android APK. Unlike the older stream-only bridge, this version exposes Stream Cinema catalog paths from the APK and uses local `sc:` IDs so titles opened from a catalog can be resolved directly without searching the title again.
 
@@ -31,7 +31,7 @@ Recommended: deploy from `render.yaml` as a Blueprint. If using an existing Web 
 
 After deploy:
 
-1. Open `/health` and confirm version `2.0.0`.
+1. Open `/health` and confirm version `2.0.4`.
 2. Open `/configure` and enter the user's own KRA credentials.
 3. Install the generated manifest in Stremio or Nuvio.
 4. Test a catalog.

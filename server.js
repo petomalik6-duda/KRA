@@ -6,14 +6,17 @@ import { KraClient } from './src/kra.js';
 import { HttpError } from './src/http.js';
 import { StreamCinemaClient } from './src/sc.js';
 import { getStreams, getCatalog, getMeta, makeManifest, ADDON_VERSION, CATALOGS } from './src/stremio.js';
+import { enrichMetaWithTmdb, tmdbConfigured } from './src/tmdb.js';
 import { htmlEscape, safeMessage } from './src/utils.js';
 
 const PORT = Number(process.env.PORT || 3000);
 
-function bridgeBase() {
-  const raw = String(process.env.UPSTREAM_STREMIO_BASE || '').trim().replace(/\/+$/, '');
+function normalizeBridgeBase(rawValue) {
+  const raw = String(rawValue || '').trim().replace(/\/+$/, '');
   return raw.endsWith('/manifest.json') ? raw.slice(0, -'/manifest.json'.length) : raw;
 }
+
+function bridgeBase() { return normalizeBridgeBase(process.env.UPSTREAM_STREMIO_BASE); }
 
 async function bridgeJson(relativePath) {
   const base = bridgeBase();
@@ -22,7 +25,7 @@ async function bridgeJson(relativePath) {
   const target = `${base}/${clean}`;
   const r = await fetch(target, {
     signal: AbortSignal.timeout(20000),
-    headers: { Accept: 'application/json', 'User-Agent': 'Stremio-KRA-Bridge/2.2.1' }
+    headers: { Accept: 'application/json', 'User-Agent': 'Stremio-KRA-Bridge/2.4.1' }
   });
   const text = await r.text();
   if (!r.ok) {
@@ -44,13 +47,56 @@ function bridgeCatalogPath(type, catalogId, extra = {}) {
   if (!cat) return null;
   const merged = { ...(cat.fixedExtra || {}), ...(extra || {}) };
   let upstreamId = catalogId;
-  if (cat.fixedExtra) upstreamId = type === 'movie' ? 'sc-movie-filter' : 'sc-series-filter';
+  if (cat.derivedDubbed) upstreamId = type === 'movie' ? 'sc-movie-latest' : 'sc-series-latest';
+  else if (cat.fixedExtra) upstreamId = type === 'movie' ? 'sc-movie-filter' : 'sc-series-filter';
   const params = new URLSearchParams();
   for (const [k,v] of Object.entries(merged)) {
     if (v !== undefined && v !== null && String(v) !== '') params.set(k, String(v));
   }
   const suffix = params.toString();
   return `catalog/${type}/${upstreamId}${suffix ? `/${suffix}` : ''}.json`;
+}
+
+
+const dubbedCatalogCache = new Map();
+const DUBBED_CACHE_MS = 30 * 60 * 1000;
+
+function streamText(stream) {
+  const parts = [stream?.name, stream?.title, stream?.description, stream?.lang, stream?.language, stream?.audio, stream?.behaviorHints?.filename];
+  return parts.flatMap(v => Array.isArray(v) ? v : [v]).filter(Boolean).join(' ').toLowerCase();
+}
+function isCzSkDubbedStream(stream) {
+  const t = streamText(stream).replace(/[č]/g,'c').replace(/[š]/g,'s').replace(/[ž]/g,'z');
+  return /(^|[\s|•,;()\[\]_-])(cz|cs|cze|czech|cesky|cestina|sk|svk|slovak|slovensky|slovencina)(?=$|[\s|•,;()\[\]_-])/.test(t)
+    || /audio[^a-z0-9]{0,6}(cz|cs|sk|czech|slovak)/.test(t)
+    || /(cz|cs|sk)[^a-z0-9]{0,6}(dub|dab)/.test(t)
+    || /(czech|slovak)[^a-z0-9]{0,10}(audio|dub)/.test(t);
+}
+async function hasDubbedStream(type, id) {
+  try {
+    const payload = await bridgeJson(`stream/${type}/${encodeURIComponent(String(id))}.json`);
+    const streams = Array.isArray(payload?.streams) ? payload.streams : [];
+    return streams.some(isCzSkDubbedStream);
+  } catch { return false; }
+}
+async function mapLimit(items, limit, fn) {
+  const out = new Array(items.length); let next=0;
+  const workers=Array.from({length:Math.min(limit,items.length)}, async()=>{
+    while(true){ const i=next++; if(i>=items.length) break; out[i]=await fn(items[i],i); }
+  });
+  await Promise.all(workers); return out;
+}
+async function bridgeDubbedCatalog(type, extra={}) {
+  const skip=Math.max(0,Number(extra.skip)||0);
+  const cacheKey=`${type}:${skip}`; const hit=dubbedCatalogCache.get(cacheKey);
+  if(hit && Date.now()-hit.at<DUBBED_CACHE_MS) return hit.data;
+  const upstreamId=type==='movie'?'sc-movie-latest':'sc-series-latest';
+  const suffix=skip?`/skip=${skip}`:'';
+  const latest=await bridgeJson(`catalog/${type}/${upstreamId}${suffix}.json`);
+  const metas=Array.isArray(latest?.metas)?latest.metas:[];
+  const flags=await mapLimit(metas,8,m=>m?.id?hasDubbedStream(type,m.id):false);
+  const filtered=metas.filter((_,i)=>flags[i]);
+  const data={metas:filtered}; dubbedCatalogCache.set(cacheKey,{at:Date.now(),data}); return data;
 }
 
 function corsHeaders(contentType = 'application/json; charset=utf-8') {
@@ -155,7 +201,7 @@ const server = http.createServer(async (req, res) => {
       sendHtml(res, 200, configurePage(req)); return;
     }
     if (req.method === 'GET' && path === '/health') {
-      sendJson(res, 200, { ok: true, version: ADDON_VERSION, node: process.version, configSecurity: configSecurityMode(), bridge: Boolean(bridgeBase()), bridgeBaseConfigured: Boolean(bridgeBase()), at: new Date().toISOString() }); return;
+      sendJson(res, 200, { ok: true, version: ADDON_VERSION, node: process.version, configSecurity: configSecurityMode(), bridge: Boolean(bridgeBase()), bridgeBaseConfigured: Boolean(bridgeBase()), tmdb: tmdbConfigured(), at: new Date().toISOString() }); return;
     }
     if (req.method === 'GET' && path === '/bridge-check.json') {
       if (!bridgeBase()) { sendJson(res, 200, { ok:false, bridge:false, error:'UPSTREAM_STREMIO_BASE is not configured.' }); return; }
@@ -168,10 +214,25 @@ const server = http.createServer(async (req, res) => {
           bridge: true,
           upstreamAddon: { id: upstreamManifest?.id || null, version: upstreamManifest?.version || null, catalogs: Array.isArray(upstreamManifest?.catalogs) ? upstreamManifest.catalogs.length : 0 },
           latestMovieCount: count,
+          tmdbConfigured: tmdbConfigured(),
           hint: count > 0 ? 'Bridge catalogs are working.' : 'The cder bridge responded, but the catalog is empty. Re-create the cder configuration with enable_catalog enabled.'
         });
       } catch (e) {
         sendJson(res, 200, { ok:false, bridge:true, error:safeMessage(e), upstream:e?.bridge || null });
+      }
+      return;
+    }
+    if (req.method === 'GET' && path === '/bridge-stream-check.json') {
+      if (!bridgeBase()) { sendJson(res, 200, { ok:false, bridge:false, error:'UPSTREAM_STREMIO_BASE is not configured.' }); return; }
+      const type = url.searchParams.get('type') === 'series' ? 'series' : 'movie';
+      const id = String(url.searchParams.get('id') || '').trim();
+      if (!id) { sendJson(res, 400, { ok:false, error:'Missing id query parameter.' }); return; }
+      try {
+        const upstream = await bridgeJson(`stream/${type}/${encodeURIComponent(id)}.json`);
+        const streams = Array.isArray(upstream?.streams) ? upstream.streams : [];
+        sendJson(res, 200, { ok:true, bridge:true, type, id, streamCount:streams.length, sample:streams.slice(0,3).map(x=>({name:x?.name||null,title:x?.title||null,url:Boolean(x?.url)})) });
+      } catch (e) {
+        sendJson(res, 200, { ok:false, bridge:true, type, id, error:safeMessage(e), upstream:e?.bridge||null });
       }
       return;
     }
@@ -251,7 +312,8 @@ const server = http.createServer(async (req, res) => {
         try {
           const bridgePath = bridgeCatalogPath(typeForCatalog, catalogId, { skip: 0 });
           if (bridgeBase() && bridgePath) {
-            const bridged = await bridgeJson(bridgePath);
+            const catDef = CATALOGS.find(c => c.id === catalogId && c.type === typeForCatalog);
+            const bridged = catDef?.derivedDubbed ? await bridgeDubbedCatalog(typeForCatalog, {skip:0}) : await bridgeJson(bridgePath);
             const metas = Array.isArray(bridged?.metas) ? bridged.metas : [];
             result.catalog = {
               id: catalogId,
@@ -285,7 +347,8 @@ const server = http.createServer(async (req, res) => {
       }
       try {
         const bridgePath = bridgeCatalogPath(type, catalogId, extra);
-        const bridged = bridgePath ? await bridgeJson(bridgePath) : null;
+        const catDef = CATALOGS.find(c => c.id === catalogId && c.type === type);
+        const bridged = catDef?.derivedDubbed ? await bridgeDubbedCatalog(type, extra) : (bridgePath ? await bridgeJson(bridgePath) : null);
         if (bridged) { sendJson(res, 200, bridged); return; }
         const result = await getCatalog(config, type, catalogId, extra);
         if (process.env.DEBUG === '1') console.log('[catalog]', type, catalogId, result.diagnostics);
@@ -303,8 +366,9 @@ const server = http.createServer(async (req, res) => {
       const config = decodeConfig(token);
       try {
         const bridged = await bridgeJson(`meta/${type}/${id}.json`);
-        if (bridged) { sendJson(res, 200, bridged); return; }
-        const meta = await getMeta(config, type, id);
+        if (bridged?.meta) { const meta = await enrichMetaWithTmdb(type, id, bridged.meta); sendJson(res, 200, { meta }); return; }
+        const nativeMeta = await getMeta(config, type, id);
+        const meta = await enrichMetaWithTmdb(type, id, nativeMeta);
         sendJson(res, 200, { meta });
       } catch (e) {
         console.error('[meta error]', type, id, safeMessage(e));
@@ -318,8 +382,13 @@ const server = http.createServer(async (req, res) => {
       const [, token, type, id] = streamMatch;
       const config = decodeConfig(token);
       try {
-        const bridged = await bridgeJson(`stream/${type}/${id}.json`);
-        if (bridged) { sendJson(res, 200, bridged); return; }
+        let bridged = null;
+        try { bridged = await bridgeJson(`stream/${type}/${encodeURIComponent(id)}.json`); }
+        catch (firstErr) {
+          try { bridged = await bridgeJson(`stream/${type}/${id}.json`); }
+          catch {}
+        }
+        if (Array.isArray(bridged?.streams) && bridged.streams.length) { sendJson(res, 200, bridged); return; }
         const result = await getStreams(config, type, id);
         if (process.env.DEBUG === '1') console.log('[stream]', type, id, result.diagnostics);
         sendJson(res, 200, { streams: result.streams });

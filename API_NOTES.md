@@ -6,3 +6,7 @@
 - TMDB enrichment is optional and server-side only. Credentials are read from `TMDB_API_KEY` or `TMDB_READ_ACCESS_TOKEN` and are never included in the Stremio configuration URL.
 - TMDB lookup flow: IMDb external ID (`/find/{imdb}`) -> movie/TV details; fallback to title/year search if no IMDb ID can be recovered.
 - Native KRA/APK code remains as a fallback for routes where the bridge is unavailable.
+
+
+## 2.5.0 ID bridge
+Catalog previews from cder are cached by exact ID. The ID is never replaced by TMDB/IMDb enrichment. IMDb IDs are treated only as aliases for metadata lookup and a secondary cder stream attempt.

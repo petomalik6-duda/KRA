@@ -21,16 +21,16 @@ import {
 } from './utils.js';
 
 export const ADDON_ID = 'org.stream-cinema.online';
-export const ADDON_VERSION = '2.4.1';
+export const ADDON_VERSION = '2.6.0';
 
 export const CATALOGS = [
   { id:'sc-movie-latest', type:'movie', name:'⏳ SC: Najnovšie filmy', path:'/FMovies/latest', extra:[{name:'skip',isRequired:false}] },
   { id:'sc-movie-popular', type:'movie', name:'🔥 SC: Populárne filmy', path:'/FMovies/popular', extra:[{name:'search',isRequired:false},{name:'skip',isRequired:false}] },
-  { id:'sc-movie-latest-dubbed', type:'movie', name:'🇨🇿🇸🇰 SC: Novinky dabované – filmy', path:'/FMovies/latest', extra:[{name:'skip',isRequired:false}], derivedDubbed:true },
-  { id:'sc-movie-concerts', type:'movie', name:'🎵 SC: Koncerty / Hudba', path:'/FMovies/filter', fixedExtra:{genre:'Music'} },
+  { id:'sc-movie-latest-dubbed', type:'movie', name:'🇨🇿🇸🇰 SC: Novinky dabované – filmy', path:'/FMovies/latestd', extra:[{name:'skip',isRequired:false}], derivedDubbed:true },
+  { id:'sc-movie-concerts', type:'movie', name:'🎵 SC: Koncerty / Hudba', path:'/FKoncert/latest', fixedExtra:{genre:'Music'}, derivedConcert:true },
   { id:'sc-series-latest', type:'series', name:'⏳ SC: Najnovšie seriály', path:'/FSeries/latest', extra:[{name:'skip',isRequired:false}] },
   { id:'sc-series-popular', type:'series', name:'🔥 SC: Populárne seriály', path:'/FSeries/popular', extra:[{name:'search',isRequired:false},{name:'skip',isRequired:false}] },
-  { id:'sc-series-latest-dubbed', type:'series', name:'🇨🇿🇸🇰 SC: Novinky dabované – seriály', path:'/FSeries/latest', extra:[{name:'skip',isRequired:false}], derivedDubbed:true },
+  { id:'sc-series-latest-dubbed', type:'series', name:'🇨🇿🇸🇰 SC: Novinky dabované – seriály', path:'/FSeries/latestd', extra:[{name:'skip',isRequired:false}], derivedDubbed:true },
 
   // Derived movie catalogs. These map to the upstream movie filter catalog.
   { id:'sc-movie-2026', type:'movie', name:'🎬 SC: Filmy 2026', path:'/FMovies/filter', fixedExtra:{year:'2026'} },

@@ -1,8 +1,12 @@
-# Stream Cinema / KRA Stremio & Nuvio addon v2.4.1
+# v2.6.0 – APK identity-compatible bridge
+
+This build keeps cder catalog IDs and behaviorHints untouched. TMDB enrichment never changes the ID used for stream resolution. APK-derived native branches include `/FMovies/latestd`, `/FSeries/latestd`, and `/FKoncert/latest`.
+
+# Stream Cinema / KRA Stremio & Nuvio addon v2.5.0
 
 This build uses one known-working Stremio upstream (`UPSTREAM_STREMIO_BASE`) for catalogs/meta/streams and keeps the native KRA/APK resolver as fallback.
 
-## What changed in 2.4.1
+## What changed in 2.5.0
 
 - **Only one cder/upstream configuration is needed.** `UPSTREAM_STREMIO_BASE_DUBBED` is no longer used.
 - Added derived catalogs:
@@ -40,7 +44,7 @@ After redeploy, `/health` should show:
 
 ```json
 {
-  "version": "2.4.1",
+  "version": "2.5.0",
   "bridge": true,
   "tmdb": true
 }
@@ -68,7 +72,15 @@ The first request for a dubbed catalog can be slower because it has to inspect s
 The manifest includes the base cder catalogs plus derived year/genre catalogs, CZ/SK dubbed latest movies/series, and Music/Concerts.
 
 
-## v2.4.1 stream compatibility
+## v2.5.0 stream compatibility
 - Stremio idPrefixes corrected to `tt` and `sc` exactly like the working cder addon.
 - Stream bridge preserves the upstream item ID and forwards it directly to cder.
 - New diagnostic: `/bridge-stream-check.json?type=movie&id=tt...` (or an `sc...` id).
+
+
+## v2.5.0 catalog → detail → stream linking
+- Keeps the exact cder catalog `id` for Stremio/Nuvio resource routing.
+- Caches catalog previews and discovers any IMDb alias exposed by cder.
+- Meta route works even when upstream cder Meta is disabled: it falls back to cached preview + TMDB enrichment.
+- TMDB-enriched meta always returns the original catalog ID, preventing broken catalog/detail/stream links.
+- Stream route tries the original cder ID first, then an IMDb alias if one is available.

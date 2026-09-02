@@ -25,7 +25,7 @@ async function bridgeJson(relativePath) {
   const target = `${base}/${clean}`;
   const r = await fetch(target, {
     signal: AbortSignal.timeout(20000),
-    headers: { Accept: 'application/json', 'User-Agent': 'Stremio-KRA-Bridge/2.4.1' }
+    headers: { Accept: 'application/json', 'User-Agent': 'Stremio-KRA-Bridge/2.6.0' }
   });
   const text = await r.text();
   if (!r.ok) {
@@ -42,12 +42,89 @@ async function bridgeJson(relativePath) {
 }
 
 
+
+
+// Cache the exact metadata previews returned by the working cder catalog.
+// This lets our meta/stream routes preserve the upstream sc ID while still
+// discovering an IMDb ID (when cder exposes one in auxiliary fields).
+const bridgeMetaCache = new Map();
+const BRIDGE_META_TTL = 6 * 60 * 60 * 1000;
+
+function ttIdFrom(value) {
+  const m = String(value ?? '').match(/tt\d{5,12}/i);
+  return m ? m[0].toLowerCase() : '';
+}
+function imdbIdFromMeta(meta) {
+  if (!meta || typeof meta !== 'object') return '';
+  const vals = [
+    meta.id, meta.imdb_id, meta.imdbId, meta.imdb,
+    meta?.external_ids?.imdb_id,
+    meta?.behaviorHints?.defaultVideoId,
+    meta?.links?.find?.(x => x?.category === 'imdb')?.url
+  ];
+  for (const v of vals) { const tt = ttIdFrom(v); if (tt) return tt; }
+  return '';
+}
+function bridgeMetaKey(type,id) { return `${type}:${String(id)}`; }
+function rememberBridgeMetas(type, metas) {
+  const at = Date.now();
+  for (const raw of Array.isArray(metas) ? metas : []) {
+    if (!raw?.id) continue;
+    const meta = { ...raw, type: raw.type || type };
+    const imdbId = imdbIdFromMeta(meta);
+    bridgeMetaCache.set(bridgeMetaKey(type, meta.id), { at, meta, imdbId });
+  }
+}
+function cachedBridgeMeta(type,id) {
+  const hit = bridgeMetaCache.get(bridgeMetaKey(type,id));
+  if (!hit) return null;
+  if (Date.now() - hit.at > BRIDGE_META_TTL) { bridgeMetaCache.delete(bridgeMetaKey(type,id)); return null; }
+  return hit;
+}
+function normalizeBridgeCatalog(type, payload) {
+  if (!payload || !Array.isArray(payload.metas)) return payload;
+  // Transparent bridge: never rewrite upstream ids or behaviorHints. The working
+  // cder addon owns the catalog -> meta -> stream identity contract. We only
+  // cache a copy for optional TMDB enrichment.
+  const metas = payload.metas.map(raw => raw && typeof raw === 'object' ? { ...raw } : raw);
+  rememberBridgeMetas(type, metas);
+  return { ...payload, metas };
+}
+
+async function tryBridgeMeta(type,id) {
+  try {
+    const data = await bridgeJson(`meta/${type}/${encodeURIComponent(String(id))}.json`);
+    if (data?.meta) return data.meta;
+  } catch {}
+  try {
+    const data = await bridgeJson(`meta/${type}/${String(id)}.json`);
+    if (data?.meta) return data.meta;
+  } catch {}
+  return null;
+}
+async function tryBridgeStreams(type,id) {
+  const attempts = [];
+  for (const p of [
+    `stream/${type}/${encodeURIComponent(String(id))}.json`,
+    `stream/${type}/${String(id)}.json`
+  ]) {
+    if (attempts.includes(p)) continue;
+    attempts.push(p);
+    try {
+      const data = await bridgeJson(p);
+      if (Array.isArray(data?.streams) && data.streams.length) return { data, path:p };
+    } catch {}
+  }
+  return { data:null, path:null };
+}
+
 function bridgeCatalogPath(type, catalogId, extra = {}) {
   const cat = CATALOGS.find(c => c.id === catalogId && c.type === type);
   if (!cat) return null;
   const merged = { ...(cat.fixedExtra || {}), ...(extra || {}) };
   let upstreamId = catalogId;
   if (cat.derivedDubbed) upstreamId = type === 'movie' ? 'sc-movie-latest' : 'sc-series-latest';
+  else if (cat.derivedConcert) upstreamId = 'sc-movie-filter';
   else if (cat.fixedExtra) upstreamId = type === 'movie' ? 'sc-movie-filter' : 'sc-series-filter';
   const params = new URLSearchParams();
   for (const [k,v] of Object.entries(merged)) {
@@ -207,7 +284,7 @@ const server = http.createServer(async (req, res) => {
       if (!bridgeBase()) { sendJson(res, 200, { ok:false, bridge:false, error:'UPSTREAM_STREMIO_BASE is not configured.' }); return; }
       try {
         const upstreamManifest = await bridgeJson('manifest.json');
-        const latest = await bridgeJson('catalog/movie/sc-movie-latest.json');
+        const latest = normalizeBridgeCatalog('movie', await bridgeJson('catalog/movie/sc-movie-latest.json'));
         const count = Array.isArray(latest?.metas) ? latest.metas.length : 0;
         sendJson(res, 200, {
           ok: count > 0,
@@ -313,7 +390,8 @@ const server = http.createServer(async (req, res) => {
           const bridgePath = bridgeCatalogPath(typeForCatalog, catalogId, { skip: 0 });
           if (bridgeBase() && bridgePath) {
             const catDef = CATALOGS.find(c => c.id === catalogId && c.type === typeForCatalog);
-            const bridged = catDef?.derivedDubbed ? await bridgeDubbedCatalog(typeForCatalog, {skip:0}) : await bridgeJson(bridgePath);
+            const rawBridged = catDef?.derivedDubbed ? await bridgeDubbedCatalog(typeForCatalog, {skip:0}) : await bridgeJson(bridgePath);
+            const bridged = normalizeBridgeCatalog(typeForCatalog, rawBridged);
             const metas = Array.isArray(bridged?.metas) ? bridged.metas : [];
             result.catalog = {
               id: catalogId,
@@ -348,7 +426,8 @@ const server = http.createServer(async (req, res) => {
       try {
         const bridgePath = bridgeCatalogPath(type, catalogId, extra);
         const catDef = CATALOGS.find(c => c.id === catalogId && c.type === type);
-        const bridged = catDef?.derivedDubbed ? await bridgeDubbedCatalog(type, extra) : (bridgePath ? await bridgeJson(bridgePath) : null);
+        const rawBridged = catDef?.derivedDubbed ? await bridgeDubbedCatalog(type, extra) : (bridgePath ? await bridgeJson(bridgePath) : null);
+        const bridged = normalizeBridgeCatalog(type, rawBridged);
         if (bridged) { sendJson(res, 200, bridged); return; }
         const result = await getCatalog(config, type, catalogId, extra);
         if (process.env.DEBUG === '1') console.log('[catalog]', type, catalogId, result.diagnostics);
@@ -365,14 +444,28 @@ const server = http.createServer(async (req, res) => {
       const [, token, type, id] = metaMatch;
       const config = decodeConfig(token);
       try {
-        const bridged = await bridgeJson(`meta/${type}/${id}.json`);
-        if (bridged?.meta) { const meta = await enrichMetaWithTmdb(type, id, bridged.meta); sendJson(res, 200, { meta }); return; }
-        const nativeMeta = await getMeta(config, type, id);
-        const meta = await enrichMetaWithTmdb(type, id, nativeMeta);
+        const cached = cachedBridgeMeta(type, id);
+        const upstreamMeta = await tryBridgeMeta(type, id);
+        let baseMeta = upstreamMeta || cached?.meta || null;
+        let lookupId = imdbIdFromMeta(upstreamMeta) || cached?.imdbId || imdbIdFromMeta(baseMeta) || id;
+
+        // If cder Meta is disabled, the cached catalog preview is still enough for
+        // TMDB to locate by IMDb ID or by name/year. For plain tt IDs use native
+        // metadata as another fallback.
+        if (!baseMeta && /^tt\d+$/i.test(id)) {
+          try { baseMeta = await getMeta(config, type, id); } catch {}
+        }
+        if (!baseMeta) baseMeta = { id, type, name: String(id) };
+
+        let meta = await enrichMetaWithTmdb(type, lookupId, baseMeta);
+        // The detail response MUST keep the exact catalog ID, otherwise Stremio/Nuvio
+        // loses the link from catalog -> meta -> stream.
+        meta = { ...meta, id, type };
         sendJson(res, 200, { meta });
       } catch (e) {
         console.error('[meta error]', type, id, safeMessage(e));
-        sendJson(res, 200, { meta: null });
+        const cached = cachedBridgeMeta(type, id);
+        sendJson(res, 200, { meta: cached?.meta ? { ...cached.meta, id, type } : null });
       }
       return;
     }
@@ -382,16 +475,22 @@ const server = http.createServer(async (req, res) => {
       const [, token, type, id] = streamMatch;
       const config = decodeConfig(token);
       try {
-        let bridged = null;
-        try { bridged = await bridgeJson(`stream/${type}/${encodeURIComponent(id)}.json`); }
-        catch (firstErr) {
-          try { bridged = await bridgeJson(`stream/${type}/${id}.json`); }
-          catch {}
+        // First preserve the exact cder catalog ID. This is the most important path.
+        let bridged = await tryBridgeStreams(type, id);
+        if (bridged.data) { sendJson(res, 200, bridged.data); return; }
+
+        // Do not translate a cder sc id to IMDb/TMDB here. The APK keeps its
+        // internal content identity separate from metadata identity, and the
+        // working upstream expects the exact catalog id for stream resolution.
+        // Native fallback is useful for normal IMDb IDs. Avoid treating foreign cder
+        // sc IDs as our own encoded sc: IDs.
+        if (/^tt\d+/i.test(id) || /^sc:/i.test(id)) {
+          const result = await getStreams(config, type, id);
+          if (process.env.DEBUG === '1') console.log('[stream]', type, id, result.diagnostics);
+          sendJson(res, 200, { streams: result.streams });
+          return;
         }
-        if (Array.isArray(bridged?.streams) && bridged.streams.length) { sendJson(res, 200, bridged); return; }
-        const result = await getStreams(config, type, id);
-        if (process.env.DEBUG === '1') console.log('[stream]', type, id, result.diagnostics);
-        sendJson(res, 200, { streams: result.streams });
+        sendJson(res, 200, { streams: [] });
       } catch (e) {
         console.error('[stream error]', type, id, safeMessage(e));
         // Stremio expects a valid stream response even when upstream fails.

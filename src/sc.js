@@ -152,11 +152,14 @@ export class StreamCinemaClient {
     //   GET kodi/Search/{searchId}
     //   search=<typed title>
     //   id=<same searchId>
-    //   ms is null/omitted for title search; ms=1 only for search-people*.
+    //   ms=0 for normal title search; ms=1 is used by search-people*.
     // The Android app does NOT put IMDb ID into the `id` query parameter.
     const url = new URL(`kodi/Search/${searchId}`, SC_BASE);
     url.searchParams.set('search', query);
     url.searchParams.set('id', searchId);
+    // APK ContentRepository.searchInternal passes ms explicitly as integer 0
+    // for normal title searches. It is not omitted.
+    url.searchParams.set('ms', '0');
     return this.get(url.toString());
   }
 }

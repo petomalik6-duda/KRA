@@ -1,3 +1,7 @@
+## v1.0.3
+
+Fix: exact APK search request now includes `ms=0` for movie/series title search.
+
 # KRA • Stream Cinema – Stremio / Nuvio addon
 
 Stream-only addon reconstructed from the API contracts and playback logic in the supplied Android APK.

@@ -19,7 +19,7 @@ import {
 } from './utils.js';
 
 export const ADDON_ID = 'community.kra.streamcinema.bridge';
-export const ADDON_VERSION = '1.0.2';
+export const ADDON_VERSION = '1.0.4';
 
 export function makeManifest(configured = false) {
   return {

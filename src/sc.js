@@ -7,6 +7,7 @@ export const SC_LANGUAGE = 'sk';
 export const SC_SKIN = 'skin.estuary';
 const AUTH_TTL_MS = 2 * 60 * 60 * 1000;
 const authCache = new Map();
+const searchPathCache = new Map();
 
 // Public RSA modulus/exponent embedded in the supplied APK. It verifies/recovers signed SC identifiers.
 const SC_RSA_MODULUS = BigInt('0x' +
@@ -147,20 +148,58 @@ export class StreamCinemaClient {
 
   async search(type, query, imdbId = '') {
     const searchId = type === 'series' ? 'search-series' : 'search-movie';
+    const mediaPath = type === 'series' ? 'FSeries/search' : 'FMovies/search';
 
-    // Exact request reconstructed from ContentRepository.searchInternal in the APK:
-    //   GET kodi/Search/{searchId}
-    //   search=<typed title>
-    //   id=<same searchId>
-    //   ms=0 for normal title search; ms=1 is used by search-people*.
-    // The Android app does NOT put IMDb ID into the `id` query parameter.
-    const url = new URL(`kodi/Search/${searchId}`, SC_BASE);
-    url.searchParams.set('search', query);
-    url.searchParams.set('id', searchId);
-    // APK ContentRepository.searchInternal passes ms explicitly as integer 0
-    // for normal title searches. It is not omitted.
-    url.searchParams.set('ms', '0');
-    return this.get(url.toString());
+    // The APK exposes two pieces of information:
+    //  1) Retrofit: GET kodi/Search/{searchId}
+    //  2) static menu: /FMovies/search or /FSeries/search with action id search-movie/search-series.
+    // Some SC deployments route one form and return 404 for the other, so probe safe GET
+    // variants on 404 and cache the first one that works. This avoids guessing forever.
+    const candidates = [
+      `kodi/Search/${searchId}`,
+      `kodi/Search/${searchId}/`,
+      `kodi/${mediaPath}`,
+      mediaPath,
+      `Search/${searchId}`,
+      `Search/${searchId}/`
+    ];
+    const cacheKey = type;
+    const cached = searchPathCache.get(cacheKey);
+    if (cached) {
+      const i = candidates.indexOf(cached);
+      if (i > 0) candidates.unshift(candidates.splice(i, 1)[0]);
+    }
+
+    const attempts = [];
+    let lastError = null;
+    for (const path of candidates) {
+      const url = new URL(path, SC_BASE);
+      url.searchParams.set('search', query);
+      url.searchParams.set('id', searchId);
+      url.searchParams.set('ms', '0');
+      try {
+        const data = await this.get(url.toString());
+        searchPathCache.set(cacheKey, path);
+        if (data && typeof data === 'object') {
+          Object.defineProperty(data, '__searchRoute', { value: path, enumerable: false });
+        }
+        return data;
+      } catch (e) {
+        lastError = e;
+        attempts.push({ path: url.pathname, status: e instanceof HttpError ? e.status : null });
+        if (!(e instanceof HttpError) || e.status !== 404) throw e;
+      }
+    }
+
+    if (lastError instanceof HttpError) {
+      throw new HttpError(
+        'HTTP 404 on all Stream Cinema search route variants',
+        404,
+        { searchAttempts: attempts },
+        lastError.url
+      );
+    }
+    throw lastError || new Error('Stream Cinema search failed.');
   }
 }
 

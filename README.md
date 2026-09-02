@@ -87,3 +87,7 @@ npm test
 
 ### v1.0.2
 Search request now mirrors the Android APK exactly: `id` equals `search-movie`/`search-series`, `ms` is omitted for title search, and SC defaults use `HDR=1`, `DV=0`, `old=1`.
+
+
+## v1.0.4 search diagnostics
+If Stream Cinema returns HTTP 404 for the Retrofit search route, the addon safely probes the menu-compatible search route variants and caches the first successful route. If all variants return 404, `diagnostics.json` includes `upstream.body.searchAttempts` so the exact server behavior is visible without exposing credentials or tokens.

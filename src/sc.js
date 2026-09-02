@@ -164,11 +164,14 @@ export class StreamCinemaClient {
     // resolves these through its Kodi API transport. Probe only equivalent
     // transport forms and reject HTML error pages even if a server returns 200.
     const candidates = [
+      // APK Retrofit literal is `kodi/` (with trailing slash). Menu path is
+      // supplied as the `url` query parameter. Keep this exact form first.
+      `kodi/?url=${encodeURIComponent(cleanPath)}`,
+      `kodi?url=${encodeURIComponent(cleanPath)}`,
       `kodi${cleanPath}`,
       `kodi${cleanPath}/`,
       `kodi/Menu?url=${encodeURIComponent(cleanPath)}`,
       `kodi/menu?url=${encodeURIComponent(cleanPath)}`,
-      `kodi?url=${encodeURIComponent(cleanPath)}`,
       cleanPath.replace(/^\//, '')
     ];
 

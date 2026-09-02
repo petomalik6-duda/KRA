@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { URL } from 'node:url';
 import { decodeConfig, encodeConfig, configSecurityMode } from './src/config.js';
 import { KraClient } from './src/kra.js';
+import { HttpError } from './src/http.js';
 import { StreamCinemaClient } from './src/sc.js';
 import { getStreams, makeManifest, ADDON_VERSION } from './src/stremio.js';
 import { htmlEscape, safeMessage } from './src/utils.js';
@@ -22,6 +23,26 @@ function corsHeaders(contentType = 'application/json; charset=utf-8') {
 function sendJson(res, status, body) {
   res.writeHead(status, corsHeaders());
   res.end(JSON.stringify(body));
+}
+
+
+function safeUpstreamError(e) {
+  if (!(e instanceof HttpError)) return null;
+  try {
+    const u = new URL(e.url);
+    for (const key of ['krt','token','session_id','auth','uid']) {
+      if (u.searchParams.has(key)) u.searchParams.set(key, '***');
+    }
+    return {
+      status: e.status,
+      host: u.host,
+      path: u.pathname,
+      query: Object.fromEntries(u.searchParams.entries()),
+      body: e.body && typeof e.body === 'object' ? e.body : null
+    };
+  } catch {
+    return { status: e.status };
+  }
 }
 
 function sendHtml(res, status, html) {
@@ -152,8 +173,16 @@ const server = http.createServer(async (req, res) => {
       const type = url.searchParams.get('type');
       const id = url.searchParams.get('id');
       if ((type === 'movie' || type === 'series') && id) {
-        const found = await getStreams(config, type, id);
-        result.lookup = { type, id, streamCount: found.streams.length, diagnostics: found.diagnostics };
+        try {
+          const found = await getStreams(config, type, id);
+          result.lookup = { type, id, streamCount: found.streams.length, diagnostics: found.diagnostics };
+        } catch (e) {
+          result.ok = false;
+          result.lookup = {
+            type, id, streamCount: 0,
+            diagnostics: { stage: 'upstream-error', error: safeMessage(e), upstream: safeUpstreamError(e) }
+          };
+        }
       }
       sendJson(res, 200, result); return;
     }
@@ -177,7 +206,7 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 404, { error: 'not found', path });
   } catch (e) {
     console.error('[request error]', safeMessage(e));
-    sendJson(res, 500, { ok: false, error: safeMessage(e) });
+    sendJson(res, 500, { ok: false, error: safeMessage(e), upstream: safeUpstreamError(e) });
   }
 });
 

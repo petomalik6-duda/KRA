@@ -145,14 +145,31 @@ export class StreamCinemaClient {
     }
   }
 
-  async search(type, query) {
+  async search(type, query, imdbId = '') {
     const searchId = type === 'series' ? 'search-series' : 'search-movie';
-    const url = new URL(`kodi/Search/${searchId}`, SC_BASE);
-    url.searchParams.set('search', query);
-    // The Android app sends the search action id again as the `id` query parameter.
-    url.searchParams.set('id', searchId);
-    // APK's optional `ms` parameter is used for people-search; it is omitted for movie/series search.
-    return this.get(url.toString());
+
+    // The APK declares GET kodi/Search/{searchId}. Different SC backend revisions
+    // have treated the optional `id` query differently, so try the minimal
+    // request first and only add `id` as compatibility fallbacks on HTTP 404.
+    const attempts = [
+      null,
+      searchId,
+      imdbId || null
+    ].filter((v, i, a) => i === 0 || (v && a.indexOf(v) === i));
+
+    let lastError = null;
+    for (const idValue of attempts) {
+      const url = new URL(`kodi/Search/${searchId}`, SC_BASE);
+      url.searchParams.set('search', query);
+      if (idValue) url.searchParams.set('id', idValue);
+      try {
+        return await this.get(url.toString());
+      } catch (e) {
+        lastError = e;
+        if (!(e instanceof HttpError) || e.status !== 404) throw e;
+      }
+    }
+    throw lastError || new Error('Stream Cinema search failed.');
   }
 }
 

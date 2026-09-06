@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decryptStreamCinemaIdent, versionIdent, rankSearchCandidates } from '../src/sc.js';
 import { parseStremioId } from '../src/utils.js';
+import { ADDON_VERSION, CATALOGS, makeManifest } from '../src/stremio.js';
 
 test('plain and v0 Stream Cinema identifiers', () => {
   assert.equal(decryptStreamCinemaIdent('plain-ident'), 'plain-ident');
@@ -37,4 +38,26 @@ test('encrypted configuration round-trip', async () => {
   assert.equal(decoded.username, 'u');
   assert.equal(decoded.password, 'p');
   assert.equal(decoded.maxStreams, 10);
+});
+
+test('APK catalog routes used by v2.8.0 are preserved', () => {
+  assert.equal(ADDON_VERSION, '2.8.0');
+  const byId = Object.fromEntries(CATALOGS.map(c => [c.id, c]));
+  assert.equal(byId['sc-movie-latest-dubbed'].path, '/FMovies/latestd');
+  assert.equal(byId['sc-movie-concerts'].path, '/FKoncert/latest');
+  assert.equal(byId['sc-series-latest'].path, '/FSeries/latestt');
+  assert.equal(byId['sc-series-latest-dubbed'].path, '/FSeries/latestd');
+  assert.equal(byId['sc-series-added'].path, '/FSeries/latest');
+  assert.equal(byId['sc-series-newep'].path, '/FSeries/newep');
+  assert.equal(byId['sc-movie-newstream'].path, '/FMovies/newstream');
+  assert.equal(byId['sc-movie-latest-dubbed'].nativePreferred, true);
+  assert.equal(byId['sc-movie-concerts'].nativePreferred, true);
+});
+
+test('manifest exposes new native KRA catalogs', () => {
+  const manifest = makeManifest(true);
+  const ids = new Set(manifest.catalogs.map(c => `${c.type}:${c.id}`));
+  assert.ok(ids.has('movie:sc-movie-newstream'));
+  assert.ok(ids.has('series:sc-series-added'));
+  assert.ok(ids.has('series:sc-series-newep'));
 });

@@ -57,6 +57,17 @@ function resolutionTokens(text) {
   return { short:'', tokens:[] };
 }
 
+function resolutionRank(text) {
+  if (/\b4320[pi]?\b|\b8k\b/i.test(text)) return 600;
+  if (/\b2160[pi]?\b|\b4k\b|\buhd\b/i.test(text)) return 500;
+  if (/\b1440[pi]?\b/i.test(text)) return 450;
+  if (/\b1080[pi]?\b|\bfhd\b|\bfull[ ._-]?hd\b/i.test(text)) return 400;
+  if (/\b720[pi]?\b/i.test(text)) return 300;
+  if (/\b576[pi]?\b/i.test(text)) return 220;
+  if (/\b480[pi]?\b|\bsd\b/i.test(text)) return 200;
+  return 100;
+}
+
 function releaseTokens(text) {
   if (/\bremux\b/i.test(text)) return ['REMUX'];
   if (/\bblu[ ._-]?ray\b|\bbluray\b/i.test(text)) return ['BluRay'];
@@ -134,6 +145,17 @@ function languageDisplay(languages) {
   });
 }
 
+function dubbingRank(languages) {
+  const set = new Set(languages);
+  const hasCz = set.has('CZ');
+  const hasSk = set.has('SK');
+  if (hasCz && hasSk) return 400;
+  if (hasSk) return 350;
+  if (hasCz) return 340;
+  if (languages.length) return 200;
+  return 100;
+}
+
 function formatBytes(value) {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return '';
@@ -143,12 +165,20 @@ function formatBytes(value) {
   return `${x >= 10 || i === 0 ? x.toFixed(0) : x.toFixed(1)} ${units[i]}`;
 }
 
+function sizeBytes(stream, text) {
+  const numeric = Number(stream?.size ?? stream?.behaviorHints?.videoSize);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  const m = String(text).match(/\b(\d+(?:[.,]\d+)?)\s*(TB|GB|MB|KB|B)\b/i);
+  if (!m) return 0;
+  const value = Number(m[1].replace(',', '.'));
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  const powers = { B:0, KB:1, MB:2, GB:3, TB:4 };
+  return value * (1024 ** powers[m[2].toUpperCase()]);
+}
+
 function sizeToken(stream, text) {
-  const numeric = stream?.size ?? stream?.behaviorHints?.videoSize;
-  const fromNumber = formatBytes(numeric);
-  if (fromNumber) return fromNumber;
-  const m = String(text).match(/\b(\d+(?:[.,]\d+)?)\s*(TB|GB|MB)\b/i);
-  return m ? `${m[1].replace(',', '.')} ${m[2].toUpperCase()}` : '';
+  const bytes = sizeBytes(stream, text);
+  return bytes > 0 ? formatBytes(bytes) : '';
 }
 
 function sourceName(stream) {
@@ -245,6 +275,25 @@ export function decorateStream(stream) {
   };
 }
 
+function compareDecoratedStreams(a, b) {
+  const aText = sourceText(a);
+  const bText = sourceText(b);
+  const aLanguages = languageTokens(aText);
+  const bLanguages = languageTokens(bText);
+
+  const dubbingDiff = dubbingRank(bLanguages) - dubbingRank(aLanguages);
+  if (dubbingDiff) return dubbingDiff;
+
+  const qualityDiff = resolutionRank(bText) - resolutionRank(aText);
+  if (qualityDiff) return qualityDiff;
+
+  const sizeDiff = sizeBytes(b, bText) - sizeBytes(a, aText);
+  if (sizeDiff) return sizeDiff;
+
+  return 0;
+}
+
 export function decorateStreams(streams) {
-  return Array.isArray(streams) ? streams.map(decorateStream) : [];
+  if (!Array.isArray(streams)) return [];
+  return streams.map(decorateStream).sort(compareDecoratedStreams);
 }

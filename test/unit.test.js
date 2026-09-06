@@ -134,3 +134,22 @@ test('stream ordering uses quality and then larger file size inside same dubbing
   assert.equal(streams[1].url, 'https://example.test/large-1080');
   assert.equal(streams[2].url, 'https://example.test/small-1080');
 });
+
+test('FHD stream is not promoted to 4K just because description mentions a 4K variant', () => {
+  const streams = decorateStreams([
+    {
+      quality:'FHD',
+      title:'Avatar.2009.1080p.CZ.SK',
+      description:'Available variants: FHD and 4K',
+      url:'https://example.test/avatar-fhd'
+    },
+    {
+      quality:'4K',
+      title:'Avatar.2009.2160p.CZ.SK',
+      description:'Available variants: FHD and 4K',
+      url:'https://example.test/avatar-4k'
+    }
+  ]);
+  assert.equal(streams[0].url, 'https://example.test/avatar-4k');
+  assert.equal(streams[1].url, 'https://example.test/avatar-fhd');
+});

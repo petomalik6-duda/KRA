@@ -39,21 +39,6 @@ function sourceText(stream) {
   ].map(asText).filter(Boolean).join(' ');
 }
 
-// Resolution must be derived only from fields describing this concrete stream.
-// A free-form description may mention other available variants (e.g. FHD + 4K)
-// and must not make an FHD stream rank as 4K.
-function qualityText(stream) {
-  return [
-    stream?.quality,
-    stream?.filename,
-    stream?.fileName,
-    stream?.behaviorHints?.filename,
-    stream?.title,
-    stream?.vinfo,
-    stream?.name
-  ].map(asText).filter(Boolean).join(' ');
-}
-
 function ascii(value) {
   return String(value || '')
     .normalize('NFD')
@@ -61,26 +46,35 @@ function ascii(value) {
     .toLowerCase();
 }
 
-function resolutionTokens(text) {
-  if (/\b4320[pi]?\b|\b8k\b/i.test(text)) return { short:'8K', tokens:['4320p','8K'] };
-  if (/\b2160[pi]?\b|\b4k\b|\buhd\b/i.test(text)) return { short:'4K', tokens:['2160p','4K'] };
-  if (/\b1440[pi]?\b/i.test(text)) return { short:'1440p', tokens:['1440p'] };
-  if (/\b1080[pi]?\b|\bfhd\b|\bfull[ ._-]?hd\b/i.test(text)) return { short:'1080p', tokens:['1080p'] };
-  if (/\b720[pi]?\b/i.test(text)) return { short:'720p', tokens:['720p'] };
-  if (/\b576[pi]?\b/i.test(text)) return { short:'576p', tokens:['576p'] };
-  if (/\b480[pi]?\b|\bsd\b/i.test(text)) return { short:'480p', tokens:['480p'] };
-  return { short:'', tokens:[] };
+function resolutionFromText(text) {
+  const s = String(text || '');
+  if (/\b4320[pi]?\b|\b8k\b/i.test(s)) return { rank:600, short:'8K', tokens:['4320p','8K'] };
+  if (/\b2160[pi]?\b|\b4k\b|\buhd\b/i.test(s)) return { rank:500, short:'4K', tokens:['2160p','4K'] };
+  if (/\b1440[pi]?\b/i.test(s)) return { rank:450, short:'1440p', tokens:['1440p'] };
+  if (/\b1080[pi]?\b|\bfhd\b|\bfull[ ._-]?hd\b/i.test(s)) return { rank:400, short:'1080p', tokens:['1080p'] };
+  if (/\b720[pi]?\b/i.test(s)) return { rank:300, short:'720p', tokens:['720p'] };
+  if (/\b576[pi]?\b/i.test(s)) return { rank:220, short:'576p', tokens:['576p'] };
+  if (/\b480[pi]?\b|\bsd\b/i.test(s)) return { rank:200, short:'480p', tokens:['480p'] };
+  return null;
 }
 
-function resolutionRank(text) {
-  if (/\b4320[pi]?\b|\b8k\b/i.test(text)) return 600;
-  if (/\b2160[pi]?\b|\b4k\b|\buhd\b/i.test(text)) return 500;
-  if (/\b1440[pi]?\b/i.test(text)) return 450;
-  if (/\b1080[pi]?\b|\bfhd\b|\bfull[ ._-]?hd\b/i.test(text)) return 400;
-  if (/\b720[pi]?\b/i.test(text)) return 300;
-  if (/\b576[pi]?\b/i.test(text)) return 220;
-  if (/\b480[pi]?\b|\bsd\b/i.test(text)) return 200;
-  return 100;
+// Use the most authoritative concrete-stream field first. This prevents a
+// generic title/description from overriding an explicit quality such as FHD.
+function resolutionInfo(stream) {
+  const fields = [
+    stream?.quality,
+    stream?.filename,
+    stream?.fileName,
+    stream?.behaviorHints?.filename,
+    stream?.title,
+    stream?.vinfo,
+    stream?.name
+  ];
+  for (const field of fields) {
+    const info = resolutionFromText(asText(field));
+    if (info) return info;
+  }
+  return { rank:100, short:'', tokens:[] };
 }
 
 function releaseTokens(text) {
@@ -97,9 +91,7 @@ function visualTokens(text) {
   const out = [];
   if (/\bimax[ ._-]?enhanced\b/i.test(text)) out.push('IMAX Enhanced');
   else if (/\bimax\b/i.test(text)) out.push('IMAX');
-
-  const hasDv = /\b(dv|dovi|dolby[ ._-]?vision)\b/i.test(text);
-  if (hasDv) out.push('DV', 'Dolby Vision');
+  if (/\b(dv|dovi|dolby[ ._-]?vision)\b/i.test(text)) out.push('DV', 'Dolby Vision');
   if (/hdr[ ._-]?10[ ._-]?(\+|plus)/i.test(text)) out.push('HDR10+');
   else if (/\bhdr[ ._-]?10\b/i.test(text)) out.push('HDR10');
   else if (/\bhdr\b|\bhlg\b|\bpq\b/i.test(text)) out.push('HDR');
@@ -108,8 +100,8 @@ function visualTokens(text) {
 
 function codecTokens(text) {
   if (/\bav1\b/i.test(text)) return ['AV1'];
-  if (/\b(hevc|h[ ._-]?265|x265)\b/i.test(text)) return ['HEVC', 'x265'];
-  if (/\b(avc|h[ ._-]?264|x264)\b/i.test(text)) return ['AVC', 'x264'];
+  if (/\b(hevc|h[ ._-]?265|x265)\b/i.test(text)) return ['HEVC','x265'];
+  if (/\b(avc|h[ ._-]?264|x264)\b/i.test(text)) return ['AVC','x264'];
   return [];
 }
 
@@ -121,8 +113,8 @@ function audioTokens(text) {
   if (/\bdts[ ._-]?hd[ ._-]?(ma|master audio)\b/i.test(text)) out.push('DTS-HD MA');
   else if (/\bdts[ ._-]?hd\b/i.test(text)) out.push('DTS-HD');
   else if (/\bdts\b/i.test(text)) out.push('DTS');
-  if (/\b(ddp|dd\+|e-?ac-?3|eac3)\b/i.test(text)) out.push('DD+', 'EAC3');
-  else if (/\b(dd|ac-?3|ac3)\b/i.test(text)) out.push('DD', 'AC3');
+  if (/\b(ddp|dd\+|e-?ac-?3|eac3)\b/i.test(text)) out.push('DD+','EAC3');
+  else if (/\b(dd|ac-?3|ac3)\b/i.test(text)) out.push('DD','AC3');
   if (/\baac\b/i.test(text)) out.push('AAC');
   if (/\bflac\b/i.test(text)) out.push('FLAC');
   if (/\bopus\b/i.test(text)) out.push('Opus');
@@ -137,15 +129,15 @@ function channelToken(text) {
 }
 
 const LANGUAGE_RULES = [
-  ['CZ', '🇨🇿', /(^|[^a-z])(cz|cs|cze|czech|cesky|ceska|cestina)(?=$|[^a-z])/i],
-  ['SK', '🇸🇰', /(^|[^a-z])(sk|svk|slovak|slovensky|slovencina)(?=$|[^a-z])/i],
-  ['EN', '🇬🇧', /(^|[^a-z])(en|eng|english)(?=$|[^a-z])/i],
-  ['DE', '🇩🇪', /(^|[^a-z])(de|ger|deu|german|deutsch)(?=$|[^a-z])/i],
-  ['PL', '🇵🇱', /(^|[^a-z])(pl|pol|polish|polski)(?=$|[^a-z])/i],
-  ['HU', '🇭🇺', /(^|[^a-z])(hu|hun|hungarian|magyar)(?=$|[^a-z])/i],
-  ['FR', '🇫🇷', /(^|[^a-z])(fr|fre|fra|french)(?=$|[^a-z])/i],
-  ['ES', '🇪🇸', /(^|[^a-z])(es|spa|spanish)(?=$|[^a-z])/i],
-  ['IT', '🇮🇹', /(^|[^a-z])(it|ita|italian)(?=$|[^a-z])/i]
+  ['CZ','🇨🇿',/(^|[^a-z])(cz|cs|cze|czech|cesky|ceska|cestina)(?=$|[^a-z])/i],
+  ['SK','🇸🇰',/(^|[^a-z])(sk|svk|slovak|slovensky|slovencina)(?=$|[^a-z])/i],
+  ['EN','🇬🇧',/(^|[^a-z])(en|eng|english)(?=$|[^a-z])/i],
+  ['DE','🇩🇪',/(^|[^a-z])(de|ger|deu|german|deutsch)(?=$|[^a-z])/i],
+  ['PL','🇵🇱',/(^|[^a-z])(pl|pol|polish|polski)(?=$|[^a-z])/i],
+  ['HU','🇭🇺',/(^|[^a-z])(hu|hun|hungarian|magyar)(?=$|[^a-z])/i],
+  ['FR','🇫🇷',/(^|[^a-z])(fr|fre|fra|french)(?=$|[^a-z])/i],
+  ['ES','🇪🇸',/(^|[^a-z])(es|spa|spanish)(?=$|[^a-z])/i],
+  ['IT','🇮🇹',/(^|[^a-z])(it|ita|italian)(?=$|[^a-z])/i]
 ];
 
 function languageTokens(text) {
@@ -160,13 +152,11 @@ function languageDisplay(languages) {
   });
 }
 
+// Any CZ or SK audio counts as the same dubbed priority group. Once a stream
+// is dubbed, resolution decides before whether it has one or both languages.
 function dubbingRank(languages) {
   const set = new Set(languages);
-  const hasCz = set.has('CZ');
-  const hasSk = set.has('SK');
-  if (hasCz && hasSk) return 400;
-  if (hasSk) return 350;
-  if (hasCz) return 340;
+  if (set.has('CZ') || set.has('SK')) return 300;
   if (languages.length) return 200;
   return 100;
 }
@@ -180,10 +170,8 @@ function formatBytes(value) {
   return `${x >= 10 || i === 0 ? x.toFixed(0) : x.toFixed(1)} ${units[i]}`;
 }
 
-function sizeBytes(stream, text) {
-  const numeric = Number(stream?.size ?? stream?.behaviorHints?.videoSize);
-  if (Number.isFinite(numeric) && numeric > 0) return numeric;
-  const m = String(text).match(/\b(\d+(?:[.,]\d+)?)\s*(TB|GB|MB|KB|B)\b/i);
+function parseSizeText(text) {
+  const m = String(text || '').match(/\b(\d+(?:[.,]\d+)?)\s*(TB|GB|MB|KB|B)\b/i);
   if (!m) return 0;
   const value = Number(m[1].replace(',', '.'));
   if (!Number.isFinite(value) || value <= 0) return 0;
@@ -191,20 +179,18 @@ function sizeBytes(stream, text) {
   return value * (1024 ** powers[m[2].toUpperCase()]);
 }
 
-function sizeToken(stream, text) {
-  const bytes = sizeBytes(stream, text);
-  return bytes > 0 ? formatBytes(bytes) : '';
+function sizeBytes(stream) {
+  const numeric = Number(stream?.size ?? stream?.behaviorHints?.videoSize);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  for (const field of [stream?.filename, stream?.fileName, stream?.behaviorHints?.filename, stream?.title, stream?.name, stream?.description]) {
+    const parsed = parseSizeText(asText(field));
+    if (parsed > 0) return parsed;
+  }
+  return 0;
 }
 
 function sourceName(stream) {
-  const candidates = [
-    stream?.filename,
-    stream?.fileName,
-    stream?.behaviorHints?.filename,
-    stream?.title,
-    stream?.name
-  ];
-  for (const raw of candidates) {
+  for (const raw of [stream?.filename, stream?.fileName, stream?.behaviorHints?.filename, stream?.title, stream?.name]) {
     const value = compactText(raw);
     if (!value) continue;
     if (/^(kra|stream|stream cinema)(?:\s*[•|:-].*)?$/i.test(value)) continue;
@@ -222,8 +208,7 @@ function descriptionLines(parts, originalDescription) {
   if (video.length) lines.push(`🎞 ${video.join(' • ')}`);
   if (langDisplay.length || audio.length) {
     const languagePart = langDisplay.length ? `Dabing: ${langDisplay.join(' • ')}` : '';
-    const technicalPart = audio.join(' • ');
-    lines.push(`🔊 ${[languagePart, technicalPart].filter(Boolean).join(' • ')}`);
+    lines.push(`🔊 ${[languagePart, audio.join(' • ')].filter(Boolean).join(' • ')}`);
   }
   if (parts.size) lines.push(`💾 ${parts.size}`);
   const old = compactText(originalDescription);
@@ -234,19 +219,17 @@ function descriptionLines(parts, originalDescription) {
 export function decorateStream(stream) {
   if (!stream || typeof stream !== 'object') return stream;
   const text = sourceText(stream);
-  const technicalQuality = qualityText(stream);
-  const resolution = resolutionTokens(technicalQuality);
+  const resolution = resolutionInfo(stream);
   const release = releaseTokens(text);
   const visual = visualTokens(text);
   const codec = codecTokens(text);
   const audio = audioTokens(text);
   const channels = channelToken(text);
   const languages = languageTokens(text);
-  const size = sizeToken(stream, text);
+  const bytes = sizeBytes(stream);
+  const size = bytes > 0 ? formatBytes(bytes) : '';
   const originalSourceName = sourceName(stream);
 
-  // Nuvio/NardBadges match regexes against stream.title. Keep the canonical
-  // language codes in title even though the visible stream name uses flags.
   const badgeTokens = uniq([
     ...resolution.tokens,
     ...release,
@@ -264,12 +247,8 @@ export function decorateStream(stream) {
     .filter(Boolean).join(' • ') || 'KRA Stream';
 
   const flaggedLanguages = languageDisplay(languages);
-  const compactName = [
-    'KRA',
-    resolution.short,
-    flaggedLanguages.length ? flaggedLanguages.join(' / ') : ''
-  ].filter(Boolean).join(' • ');
-  const name = compactName || compactText(stream.name) || 'KRA';
+  const name = ['KRA', resolution.short, flaggedLanguages.length ? flaggedLanguages.join(' / ') : '']
+    .filter(Boolean).join(' • ') || compactText(stream.name) || 'KRA';
 
   const description = descriptionLines({
     sourceName:originalSourceName,
@@ -291,19 +270,17 @@ export function decorateStream(stream) {
   };
 }
 
-function compareDecoratedStreams(a, b) {
-  const aText = sourceText(a);
-  const bText = sourceText(b);
-  const aLanguages = languageTokens(aText);
-  const bLanguages = languageTokens(bText);
+function compareRawStreams(a, b) {
+  const aLanguages = languageTokens(sourceText(a));
+  const bLanguages = languageTokens(sourceText(b));
 
   const dubbingDiff = dubbingRank(bLanguages) - dubbingRank(aLanguages);
   if (dubbingDiff) return dubbingDiff;
 
-  const qualityDiff = resolutionRank(qualityText(b)) - resolutionRank(qualityText(a));
+  const qualityDiff = resolutionInfo(b).rank - resolutionInfo(a).rank;
   if (qualityDiff) return qualityDiff;
 
-  const sizeDiff = sizeBytes(b, bText) - sizeBytes(a, aText);
+  const sizeDiff = sizeBytes(b) - sizeBytes(a);
   if (sizeDiff) return sizeDiff;
 
   return 0;
@@ -311,5 +288,8 @@ function compareDecoratedStreams(a, b) {
 
 export function decorateStreams(streams) {
   if (!Array.isArray(streams)) return [];
-  return streams.map(decorateStream).sort(compareDecoratedStreams);
+  return streams
+    .map((stream, index) => ({ stream, index }))
+    .sort((a, b) => compareRawStreams(a.stream, b.stream) || a.index - b.index)
+    .map(({ stream }) => decorateStream(stream));
 }

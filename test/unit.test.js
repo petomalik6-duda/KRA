@@ -71,6 +71,8 @@ test('stream presentation exposes NardBadges-compatible tokens and description',
     behaviorHints: { videoSize: 18 * 1024 * 1024 * 1024 }
   });
   assert.match(stream.name, /^KRA/);
+  assert.match(stream.name, /🇨🇿 CZ/);
+  assert.match(stream.name, /🇸🇰 SK/);
   assert.match(stream.title, /2160p/);
   assert.match(stream.title, /4K/);
   assert.match(stream.title, /WEB-DL/);
@@ -80,9 +82,23 @@ test('stream presentation exposes NardBadges-compatible tokens and description',
   assert.match(stream.title, /Atmos/);
   assert.match(stream.title, /CZ/);
   assert.match(stream.title, /SK/);
+  assert.match(stream.description, /📄 Movie\.2026/);
   assert.match(stream.description, /🎞/);
-  assert.match(stream.description, /🔊/);
+  assert.match(stream.description, /🔊 Dabing:/);
+  assert.match(stream.description, /🇨🇿 CZ/);
+  assert.match(stream.description, /🇸🇰 SK/);
   assert.match(stream.description, /18 GB/);
+});
+
+test('stream presentation prefers actual filename as stream name in description', () => {
+  const stream = decorateStream({
+    name: 'Stream Cinema',
+    title: '1080p • CZ • AAC',
+    filename: 'Film.Name.2026.1080p.WEB-DL.CZ.mkv',
+    url: 'https://example.test/video'
+  });
+  assert.match(stream.description, /^📄 Film\.Name\.2026\.1080p\.WEB-DL\.CZ\.mkv/m);
+  assert.match(stream.name, /🇨🇿 CZ/);
 });
 
 test('stream presentation preserves playback and proxy hints', () => {

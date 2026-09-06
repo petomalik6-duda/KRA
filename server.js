@@ -26,7 +26,7 @@ async function bridgeJson(relativePath) {
   const target = `${base}/${clean}`;
   const r = await fetch(target, {
     signal: AbortSignal.timeout(20000),
-    headers: { Accept: 'application/json', 'User-Agent': 'Stremio-KRA-Bridge/2.7.0' }
+    headers: { Accept: 'application/json', 'User-Agent': 'Stremio-KRA-Bridge/2.8.0' }
   });
   const text = await r.text();
   if (!r.ok) {
@@ -42,9 +42,6 @@ async function bridgeJson(relativePath) {
   }
 }
 
-
-
-
 // Cache the exact metadata previews returned by the working cder catalog.
 // This lets our meta/stream routes preserve the upstream sc ID while still
 // discovering an IMDb ID (when cder exposes one in auxiliary fields).
@@ -55,6 +52,15 @@ function ttIdFrom(value) {
   const m = String(value ?? '').match(/tt\d{5,12}/i);
   return m ? m[0].toLowerCase() : '';
 }
+function localScPayload(id) {
+  const value = String(id || '');
+  if (!value.startsWith('sc:')) return null;
+  try {
+    const obj = JSON.parse(Buffer.from(value.slice(3), 'base64url').toString('utf8'));
+    return obj && typeof obj === 'object' && obj.u ? obj : null;
+  } catch { return null; }
+}
+function isLocalScId(id) { return Boolean(localScPayload(id)); }
 function imdbIdFromMeta(meta) {
   if (!meta || typeof meta !== 'object') return '';
   const vals = [
@@ -135,7 +141,6 @@ function bridgeCatalogPath(type, catalogId, extra = {}) {
   return `catalog/${type}/${upstreamId}${suffix ? `/${suffix}` : ''}.json`;
 }
 
-
 const dubbedCatalogCache = new Map();
 const DUBBED_CACHE_MS = 30 * 60 * 1000;
 
@@ -177,6 +182,57 @@ async function bridgeDubbedCatalog(type, extra={}) {
   const data={metas:filtered}; dubbedCatalogCache.set(cacheKey,{at:Date.now(),data}); return data;
 }
 
+async function resolveCatalogPayload(config, type, catalogId, extra = {}) {
+  const catDef = CATALOGS.find(c => c.id === catalogId && c.type === type);
+  if (!catDef) return { source:'native', payload:{ metas:[] }, diagnostics:{stage:'catalog',error:'Unknown catalog'}, bridgePath:null };
+
+  let nativeAttempted = false;
+  let nativeResult = null;
+  let nativeError = null;
+  const runNative = async () => {
+    nativeAttempted = true;
+    const c = await getCatalog(config, type, catalogId, extra);
+    nativeResult = { source:'native', payload:{ metas:c.metas }, diagnostics:c.diagnostics, bridgePath:null };
+    return nativeResult;
+  };
+
+  // APK-only/special routes are authoritative when available. This fixes the
+  // dubbed and concert catalogs without requiring another cder configuration.
+  if (catDef.nativePreferred) {
+    try {
+      const result = await runNative();
+      if (Array.isArray(result.payload?.metas) && result.payload.metas.length) return result;
+    } catch (e) { nativeError = e; }
+  }
+
+  const bridgePath = bridgeCatalogPath(type, catalogId, extra);
+  let bridgeResult = null;
+  let bridgeError = null;
+  if (bridgeBase() && bridgePath) {
+    try {
+      const raw = catDef.derivedDubbed ? await bridgeDubbedCatalog(type, extra) : await bridgeJson(bridgePath);
+      const payload = normalizeBridgeCatalog(type, raw);
+      bridgeResult = { source:'cder-bridge', payload, diagnostics:null, bridgePath };
+      if (Array.isArray(payload?.metas) && payload.metas.length) return bridgeResult;
+    } catch (e) { bridgeError = e; }
+  }
+
+  // A bridge 404/empty catalog must never make the Stremio catalog empty when
+  // the APK route itself is usable.
+  if (!nativeAttempted) {
+    try {
+      const result = await runNative();
+      if (Array.isArray(result.payload?.metas) && result.payload.metas.length) return result;
+    } catch (e) { nativeError = e; }
+  }
+
+  if (nativeResult) return nativeResult;
+  if (bridgeResult) return bridgeResult;
+  if (nativeError) throw nativeError;
+  if (bridgeError) throw bridgeError;
+  return { source:'native', payload:{ metas:[] }, diagnostics:{stage:'catalog',error:'No catalog source available'}, bridgePath };
+}
+
 function corsHeaders(contentType = 'application/json; charset=utf-8') {
   return {
     'Content-Type': contentType,
@@ -191,7 +247,6 @@ function sendJson(res, status, body) {
   res.writeHead(status, corsHeaders());
   res.end(JSON.stringify(body));
 }
-
 
 function safeUpstreamError(e) {
   if (!(e instanceof HttpError)) return null;
@@ -397,28 +452,21 @@ const server = http.createServer(async (req, res) => {
       if (catalogId) {
         const typeForCatalog = catalogId.includes('series') ? 'series' : 'movie';
         try {
-          const bridgePath = bridgeCatalogPath(typeForCatalog, catalogId, { skip: 0 });
-          if (bridgeBase() && bridgePath) {
-            const catDef = CATALOGS.find(c => c.id === catalogId && c.type === typeForCatalog);
-            const rawBridged = catDef?.derivedDubbed ? await bridgeDubbedCatalog(typeForCatalog, {skip:0}) : await bridgeJson(bridgePath);
-            const bridged = normalizeBridgeCatalog(typeForCatalog, rawBridged);
-            const metas = Array.isArray(bridged?.metas) ? bridged.metas : [];
-            result.catalog = {
-              id: catalogId,
-              type: typeForCatalog,
-              source: 'cder-bridge',
-              bridgePath,
-              metaCount: metas.length,
-              sample: metas.slice(0, 3).map(m => ({ id:m?.id || null, name:m?.name || null, type:m?.type || null })),
-              hint: metas.length ? null : 'Bridge returned an empty catalog. The upstream cder configuration may have Catalog disabled (enable_catalog=0).'
-            };
-          } else {
-            const c = await getCatalog(config, typeForCatalog, catalogId, { skip: 0 });
-            result.catalog = { id: catalogId, type: typeForCatalog, source:'native', metaCount: c.metas.length, diagnostics: c.diagnostics };
-          }
+          const resolved = await resolveCatalogPayload(config, typeForCatalog, catalogId, { skip: 0 });
+          const metas = Array.isArray(resolved.payload?.metas) ? resolved.payload.metas : [];
+          result.catalog = {
+            id: catalogId,
+            type: typeForCatalog,
+            source: resolved.source,
+            bridgePath: resolved.bridgePath,
+            metaCount: metas.length,
+            diagnostics: resolved.diagnostics || null,
+            sample: metas.slice(0, 3).map(m => ({ id:m?.id || null, name:m?.name || null, type:m?.type || null })),
+            hint: metas.length ? null : 'Catalog is empty from both preferred and fallback sources.'
+          };
         } catch (e) {
           result.ok = false;
-          result.catalog = { id: catalogId, type: typeForCatalog, source:bridgeBase()?'cder-bridge':'native', metaCount: 0, error: safeMessage(e), upstream: e?.bridge || safeUpstreamError(e), attempts: e?.menuAttempts || null };
+          result.catalog = { id: catalogId, type: typeForCatalog, source:'failed', metaCount: 0, error: safeMessage(e), upstream: e?.bridge || safeUpstreamError(e), attempts: e?.menuAttempts || null };
         }
       }
       sendJson(res, 200, result); return;
@@ -434,14 +482,9 @@ const server = http.createServer(async (req, res) => {
         for (const [k,v] of params.entries()) extra[k] = v;
       }
       try {
-        const bridgePath = bridgeCatalogPath(type, catalogId, extra);
-        const catDef = CATALOGS.find(c => c.id === catalogId && c.type === type);
-        const rawBridged = catDef?.derivedDubbed ? await bridgeDubbedCatalog(type, extra) : (bridgePath ? await bridgeJson(bridgePath) : null);
-        const bridged = normalizeBridgeCatalog(type, rawBridged);
-        if (bridged) { sendJson(res, 200, bridged); return; }
-        const result = await getCatalog(config, type, catalogId, extra);
-        if (process.env.DEBUG === '1') console.log('[catalog]', type, catalogId, result.diagnostics);
-        sendJson(res, 200, { metas: result.metas });
+        const resolved = await resolveCatalogPayload(config, type, catalogId, extra);
+        if (process.env.DEBUG === '1') console.log('[catalog]', type, catalogId, resolved.source, resolved.diagnostics || resolved.bridgePath);
+        sendJson(res, 200, resolved.payload || { metas:[] });
       } catch (e) {
         console.error('[catalog error]', type, catalogId, safeMessage(e));
         sendJson(res, 200, { metas: [] });
@@ -456,6 +499,18 @@ const server = http.createServer(async (req, res) => {
       const id = decodeURIComponent(idRaw);
       const config = decodeConfig(token);
       try {
+        // IDs created by our native APK catalog contain the original SC/KRA path.
+        // Resolve them natively first so details (and series videos) are not lost.
+        if (isLocalScId(id)) {
+          let baseMeta = await getMeta(config, type, id);
+          const lookupId = imdbIdFromMeta(baseMeta) || id;
+          let meta = await enrichMetaWithTmdb(type, lookupId, baseMeta);
+          meta = await enrichMetaWithCsfd(type, lookupId, meta);
+          meta = { ...meta, id, type };
+          sendJson(res, 200, { meta });
+          return;
+        }
+
         const cached = cachedBridgeMeta(type, id);
         const upstreamMeta = await tryBridgeMeta(type, id);
         let baseMeta = upstreamMeta || cached?.meta || null;
@@ -490,16 +545,22 @@ const server = http.createServer(async (req, res) => {
       const id = decodeURIComponent(idRaw);
       const config = decodeConfig(token);
       try {
-        // First preserve the exact cder catalog ID. This is the most important path.
-        let bridged = await tryBridgeStreams(type, id);
+        // Native catalog IDs must stay on the native path. Sending them to cder
+        // first can return an unrelated/empty result because the payload is ours.
+        if (isLocalScId(id)) {
+          const result = await getStreams(config, type, id);
+          if (process.env.DEBUG === '1') console.log('[stream native]', type, id, result.diagnostics);
+          sendJson(res, 200, { streams: result.streams });
+          return;
+        }
+
+        // Preserve the exact cder catalog ID for bridge-owned items.
+        const bridged = await tryBridgeStreams(type, id);
         if (bridged.data) { sendJson(res, 200, bridged.data); return; }
 
-        // Do not translate a cder sc id to IMDb/TMDB here. The APK keeps its
-        // internal content identity separate from metadata identity, and the
-        // working upstream expects the exact catalog id for stream resolution.
-        // Native fallback is useful for normal IMDb IDs. Avoid treating foreign cder
-        // sc IDs as our own encoded sc: IDs.
-        if (/^tt\d+/i.test(id) || /^sc:/i.test(id)) {
+        // Only normal IMDb ids use the native title-search fallback. Foreign cder
+        // sc ids are not our base64 payload and must not be parsed as IMDb ids.
+        if (/^tt\d+/i.test(id)) {
           const result = await getStreams(config, type, id);
           if (process.env.DEBUG === '1') console.log('[stream]', type, id, result.diagnostics);
           sendJson(res, 200, { streams: result.streams });
@@ -520,7 +581,6 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 500, { ok: false, error: safeMessage(e), upstream: safeUpstreamError(e) });
   }
 });
-
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`KRA Stream Cinema addon v${ADDON_VERSION} listening on :${PORT}`);

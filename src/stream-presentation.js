@@ -39,6 +39,21 @@ function sourceText(stream) {
   ].map(asText).filter(Boolean).join(' ');
 }
 
+// Resolution must be derived only from fields describing this concrete stream.
+// A free-form description may mention other available variants (e.g. FHD + 4K)
+// and must not make an FHD stream rank as 4K.
+function qualityText(stream) {
+  return [
+    stream?.quality,
+    stream?.filename,
+    stream?.fileName,
+    stream?.behaviorHints?.filename,
+    stream?.title,
+    stream?.vinfo,
+    stream?.name
+  ].map(asText).filter(Boolean).join(' ');
+}
+
 function ascii(value) {
   return String(value || '')
     .normalize('NFD')
@@ -219,7 +234,8 @@ function descriptionLines(parts, originalDescription) {
 export function decorateStream(stream) {
   if (!stream || typeof stream !== 'object') return stream;
   const text = sourceText(stream);
-  const resolution = resolutionTokens(text);
+  const technicalQuality = qualityText(stream);
+  const resolution = resolutionTokens(technicalQuality);
   const release = releaseTokens(text);
   const visual = visualTokens(text);
   const codec = codecTokens(text);
@@ -284,7 +300,7 @@ function compareDecoratedStreams(a, b) {
   const dubbingDiff = dubbingRank(bLanguages) - dubbingRank(aLanguages);
   if (dubbingDiff) return dubbingDiff;
 
-  const qualityDiff = resolutionRank(bText) - resolutionRank(aText);
+  const qualityDiff = resolutionRank(qualityText(b)) - resolutionRank(qualityText(a));
   if (qualityDiff) return qualityDiff;
 
   const sizeDiff = sizeBytes(b, bText) - sizeBytes(a, aText);

@@ -8,6 +8,7 @@ import { StreamCinemaClient } from './src/sc.js';
 import { getStreams, getCatalog, getMeta, makeManifest, ADDON_VERSION, CATALOGS } from './src/stremio.js';
 import { enrichMetaWithTmdb, tmdbConfigured } from './src/tmdb.js';
 import { enrichMetaWithCsfd, csfdConfigured } from './src/csfd.js';
+import { decorateStreams } from './src/stream-presentation.js';
 import { htmlEscape, safeMessage } from './src/utils.js';
 
 const PORT = Number(process.env.PORT || 3000);
@@ -363,8 +364,8 @@ const server = http.createServer(async (req, res) => {
       if (!id) { sendJson(res, 400, { ok:false, error:'Missing id query parameter.' }); return; }
       try {
         const upstream = await bridgeJson(`stream/${type}/${encodeURIComponent(id)}.json`);
-        const streams = Array.isArray(upstream?.streams) ? upstream.streams : [];
-        sendJson(res, 200, { ok:true, bridge:true, type, id, streamCount:streams.length, sample:streams.slice(0,3).map(x=>({name:x?.name||null,title:x?.title||null,url:Boolean(x?.url)})) });
+        const streams = decorateStreams(Array.isArray(upstream?.streams) ? upstream.streams : []);
+        sendJson(res, 200, { ok:true, bridge:true, type, id, streamCount:streams.length, sample:streams.slice(0,3).map(x=>({name:x?.name||null,title:x?.title||null,description:x?.description||null,url:Boolean(x?.url)})) });
       } catch (e) {
         sendJson(res, 200, { ok:false, bridge:true, type, id, error:safeMessage(e), upstream:e?.bridge||null });
       }
@@ -550,20 +551,23 @@ const server = http.createServer(async (req, res) => {
         if (isLocalScId(id)) {
           const result = await getStreams(config, type, id);
           if (process.env.DEBUG === '1') console.log('[stream native]', type, id, result.diagnostics);
-          sendJson(res, 200, { streams: result.streams });
+          sendJson(res, 200, { streams: decorateStreams(result.streams) });
           return;
         }
 
         // Preserve the exact cder catalog ID for bridge-owned items.
         const bridged = await tryBridgeStreams(type, id);
-        if (bridged.data) { sendJson(res, 200, bridged.data); return; }
+        if (bridged.data) {
+          sendJson(res, 200, { ...bridged.data, streams: decorateStreams(bridged.data.streams) });
+          return;
+        }
 
         // Only normal IMDb ids use the native title-search fallback. Foreign cder
         // sc ids are not our base64 payload and must not be parsed as IMDb ids.
         if (/^tt\d+/i.test(id)) {
           const result = await getStreams(config, type, id);
           if (process.env.DEBUG === '1') console.log('[stream]', type, id, result.diagnostics);
-          sendJson(res, 200, { streams: result.streams });
+          sendJson(res, 200, { streams: decorateStreams(result.streams) });
           return;
         }
         sendJson(res, 200, { streams: [] });

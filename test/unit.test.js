@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { decryptStreamCinemaIdent, versionIdent, rankSearchCandidates } from '../src/sc.js';
 import { parseStremioId } from '../src/utils.js';
 import { ADDON_VERSION, CATALOGS, makeManifest } from '../src/stremio.js';
-import { decorateStream } from '../src/stream-presentation.js';
+import { decorateStream, decorateStreams } from '../src/stream-presentation.js';
 
 test('plain and v0 Stream Cinema identifiers', () => {
   assert.equal(decryptStreamCinemaIdent('plain-ident'), 'plain-ident');
@@ -111,4 +111,26 @@ test('stream presentation preserves playback and proxy hints', () => {
   const decorated = decorateStream(original);
   assert.equal(decorated.url, original.url);
   assert.deepEqual(decorated.behaviorHints, original.behaviorHints);
+});
+
+test('stream ordering prioritizes CZ+SK dubbing before higher-quality foreign audio', () => {
+  const streams = decorateStreams([
+    { title:'2160p • EN • 30 GB', url:'https://example.test/en-4k' },
+    { title:'1080p • CZ • SK • 8 GB', url:'https://example.test/czsk-1080' },
+    { title:'2160p • CZ • 12 GB', url:'https://example.test/cz-4k' }
+  ]);
+  assert.equal(streams[0].url, 'https://example.test/czsk-1080');
+  assert.equal(streams[1].url, 'https://example.test/cz-4k');
+  assert.equal(streams[2].url, 'https://example.test/en-4k');
+});
+
+test('stream ordering uses quality and then larger file size inside same dubbing group', () => {
+  const streams = decorateStreams([
+    { title:'1080p • CZ • 4 GB', url:'https://example.test/small-1080' },
+    { title:'2160p • CZ • 9 GB', url:'https://example.test/4k' },
+    { title:'1080p • CZ • 12 GB', url:'https://example.test/large-1080' }
+  ]);
+  assert.equal(streams[0].url, 'https://example.test/4k');
+  assert.equal(streams[1].url, 'https://example.test/large-1080');
+  assert.equal(streams[2].url, 'https://example.test/small-1080');
 });

@@ -110,20 +110,28 @@ function channelToken(text) {
   return '';
 }
 
+const LANGUAGE_RULES = [
+  ['CZ', '🇨🇿', /(^|[^a-z])(cz|cs|cze|czech|cesky|ceska|cestina)(?=$|[^a-z])/i],
+  ['SK', '🇸🇰', /(^|[^a-z])(sk|svk|slovak|slovensky|slovencina)(?=$|[^a-z])/i],
+  ['EN', '🇬🇧', /(^|[^a-z])(en|eng|english)(?=$|[^a-z])/i],
+  ['DE', '🇩🇪', /(^|[^a-z])(de|ger|deu|german|deutsch)(?=$|[^a-z])/i],
+  ['PL', '🇵🇱', /(^|[^a-z])(pl|pol|polish|polski)(?=$|[^a-z])/i],
+  ['HU', '🇭🇺', /(^|[^a-z])(hu|hun|hungarian|magyar)(?=$|[^a-z])/i],
+  ['FR', '🇫🇷', /(^|[^a-z])(fr|fre|fra|french)(?=$|[^a-z])/i],
+  ['ES', '🇪🇸', /(^|[^a-z])(es|spa|spanish)(?=$|[^a-z])/i],
+  ['IT', '🇮🇹', /(^|[^a-z])(it|ita|italian)(?=$|[^a-z])/i]
+];
+
 function languageTokens(text) {
   const t = ascii(text);
-  const rules = [
-    ['CZ', /(^|[^a-z])(cz|cs|cze|czech|cesky|ceska|cestina)(?=$|[^a-z])/i],
-    ['SK', /(^|[^a-z])(sk|svk|slovak|slovensky|slovencina)(?=$|[^a-z])/i],
-    ['EN', /(^|[^a-z])(en|eng|english)(?=$|[^a-z])/i],
-    ['DE', /(^|[^a-z])(de|ger|deu|german|deutsch)(?=$|[^a-z])/i],
-    ['PL', /(^|[^a-z])(pl|pol|polish|polski)(?=$|[^a-z])/i],
-    ['HU', /(^|[^a-z])(hu|hun|hungarian|magyar)(?=$|[^a-z])/i],
-    ['FR', /(^|[^a-z])(fr|fre|fra|french)(?=$|[^a-z])/i],
-    ['ES', /(^|[^a-z])(es|spa|spanish)(?=$|[^a-z])/i],
-    ['IT', /(^|[^a-z])(it|ita|italian)(?=$|[^a-z])/i]
-  ];
-  return rules.filter(([,re]) => re.test(t)).map(([label]) => label);
+  return LANGUAGE_RULES.filter(([, ,re]) => re.test(t)).map(([label]) => label);
+}
+
+function languageDisplay(languages) {
+  return languages.map((lang) => {
+    const rule = LANGUAGE_RULES.find(([label]) => label === lang);
+    return rule ? `${rule[1]} ${lang}` : lang;
+  });
 }
 
 function formatBytes(value) {
@@ -143,12 +151,35 @@ function sizeToken(stream, text) {
   return m ? `${m[1].replace(',', '.')} ${m[2].toUpperCase()}` : '';
 }
 
+function sourceName(stream) {
+  const candidates = [
+    stream?.filename,
+    stream?.fileName,
+    stream?.behaviorHints?.filename,
+    stream?.title,
+    stream?.name
+  ];
+  for (const raw of candidates) {
+    const value = compactText(raw);
+    if (!value) continue;
+    if (/^(kra|stream|stream cinema)(?:\s*[•|:-].*)?$/i.test(value)) continue;
+    return value;
+  }
+  return '';
+}
+
 function descriptionLines(parts, originalDescription) {
   const lines = [];
+  if (parts.sourceName) lines.push(`📄 ${parts.sourceName}`);
   const video = uniq([...parts.resolution.tokens, ...parts.release, ...parts.visual, ...parts.codec]);
-  const audio = uniq([...parts.languages, ...parts.audio, parts.channels].filter(Boolean));
+  const langDisplay = languageDisplay(parts.languages);
+  const audio = uniq([...parts.audio, parts.channels].filter(Boolean));
   if (video.length) lines.push(`🎞 ${video.join(' • ')}`);
-  if (audio.length) lines.push(`🔊 ${audio.join(' • ')}`);
+  if (langDisplay.length || audio.length) {
+    const languagePart = langDisplay.length ? `Dabing: ${langDisplay.join(' • ')}` : '';
+    const technicalPart = audio.join(' • ');
+    lines.push(`🔊 ${[languagePart, technicalPart].filter(Boolean).join(' • ')}`);
+  }
   if (parts.size) lines.push(`💾 ${parts.size}`);
   const old = compactText(originalDescription);
   if (old && !lines.some(line => line.includes(old))) lines.push(old);
@@ -166,9 +197,10 @@ export function decorateStream(stream) {
   const channels = channelToken(text);
   const languages = languageTokens(text);
   const size = sizeToken(stream, text);
+  const originalSourceName = sourceName(stream);
 
-  // Nuvio/NardBadges match regexes against stream.title. Canonical tokens are
-  // intentionally included even when upstream uses unusual labels.
+  // Nuvio/NardBadges match regexes against stream.title. Keep the canonical
+  // language codes in title even though the visible stream name uses flags.
   const badgeTokens = uniq([
     ...resolution.tokens,
     ...release,
@@ -185,11 +217,25 @@ export function decorateStream(stream) {
   const title = [badgeTitle, originalTitle && !badgeTitle.toLowerCase().includes(originalTitle.toLowerCase()) ? originalTitle : '']
     .filter(Boolean).join(' • ') || 'KRA Stream';
 
-  const oldName = compactText(stream.name);
-  const compactName = ['KRA', resolution.short, languages.length ? languages.join('/') : ''].filter(Boolean).join(' • ');
-  const name = /^kra\b/i.test(oldName) ? oldName : (compactName || oldName || 'KRA');
+  const flaggedLanguages = languageDisplay(languages);
+  const compactName = [
+    'KRA',
+    resolution.short,
+    flaggedLanguages.length ? flaggedLanguages.join(' / ') : ''
+  ].filter(Boolean).join(' • ');
+  const name = compactName || compactText(stream.name) || 'KRA';
 
-  const description = descriptionLines({resolution,release,visual,codec,audio,channels,languages,size}, stream.description);
+  const description = descriptionLines({
+    sourceName:originalSourceName,
+    resolution,
+    release,
+    visual,
+    codec,
+    audio,
+    channels,
+    languages,
+    size
+  }, stream.description);
 
   return {
     ...stream,

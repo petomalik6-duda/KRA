@@ -21,44 +21,49 @@ import {
 } from './utils.js';
 
 export const ADDON_ID = 'org.stream-cinema.online';
-export const ADDON_VERSION = '2.7.0';
+export const ADDON_VERSION = '2.8.0';
 
 export const CATALOGS = [
   { id:'sc-movie-latest', type:'movie', name:'⏳ SC: Najnovšie filmy', path:'/FMovies/latest', extra:[{name:'skip',isRequired:false}] },
   { id:'sc-movie-popular', type:'movie', name:'🔥 SC: Populárne filmy', path:'/FMovies/popular', extra:[{name:'search',isRequired:false},{name:'skip',isRequired:false}] },
-  { id:'sc-movie-latest-dubbed', type:'movie', name:'🇨🇿🇸🇰 SC: Novinky dabované – filmy', path:'/FMovies/latestd', extra:[{name:'skip',isRequired:false}], derivedDubbed:true },
-  { id:'sc-movie-concerts', type:'movie', name:'🎵 SC: Koncerty / Hudba', path:'/FKoncert/latest', fixedExtra:{genre:'Music'}, derivedConcert:true },
-  { id:'sc-series-latest', type:'series', name:'⏳ SC: Najnovšie seriály', path:'/FSeries/latest', extra:[{name:'skip',isRequired:false}] },
+  { id:'sc-movie-latest-dubbed', type:'movie', name:'🇨🇿🇸🇰 SC: Novinky dabované – filmy', path:'/FMovies/latestd', extra:[{name:'skip',isRequired:false}], derivedDubbed:true, nativePreferred:true },
+  { id:'sc-movie-newstream', type:'movie', name:'🆕 SC: Najnovšie streamy – filmy', path:'/FMovies/newstream', extra:[{name:'skip',isRequired:false}], nativePreferred:true },
+  { id:'sc-movie-concerts', type:'movie', name:'🎵 SC: Koncerty / Hudba', path:'/FKoncert/latest', fixedExtra:{genre:'Music'}, derivedConcert:true, nativePreferred:true },
+  { id:'sc-series-latest', type:'series', name:'⏳ SC: Najnovšie seriály', path:'/FSeries/latestt', extra:[{name:'skip',isRequired:false}] },
   { id:'sc-series-popular', type:'series', name:'🔥 SC: Populárne seriály', path:'/FSeries/popular', extra:[{name:'search',isRequired:false},{name:'skip',isRequired:false}] },
-  { id:'sc-series-latest-dubbed', type:'series', name:'🇨🇿🇸🇰 SC: Novinky dabované – seriály', path:'/FSeries/latestd', extra:[{name:'skip',isRequired:false}], derivedDubbed:true },
+  { id:'sc-series-latest-dubbed', type:'series', name:'🇨🇿🇸🇰 SC: Novinky dabované – seriály', path:'/FSeries/latestd', extra:[{name:'skip',isRequired:false}], derivedDubbed:true, nativePreferred:true },
+  { id:'sc-series-added', type:'series', name:'🆕 SC: Najnovšie pridané seriály', path:'/FSeries/latest', extra:[{name:'skip',isRequired:false}], nativePreferred:true },
+  { id:'sc-series-newep', type:'series', name:'📺 SC: Najnovšie epizódy', path:'/FSeries/newep', extra:[{name:'skip',isRequired:false}], nativePreferred:true },
 
-  // Derived movie catalogs. These map to the upstream movie filter catalog.
-  { id:'sc-movie-2026', type:'movie', name:'🎬 SC: Filmy 2026', path:'/FMovies/filter', fixedExtra:{year:'2026'} },
-  { id:'sc-movie-2025', type:'movie', name:'🎬 SC: Filmy 2025', path:'/FMovies/filter', fixedExtra:{year:'2025'} },
-  { id:'sc-movie-action', type:'movie', name:'💥 SC: Akčné filmy', path:'/FMovies/filter', fixedExtra:{genre:'Action'} },
-  { id:'sc-movie-comedy', type:'movie', name:'😂 SC: Komédie', path:'/FMovies/filter', fixedExtra:{genre:'Comedy'} },
-  { id:'sc-movie-horror', type:'movie', name:'👻 SC: Horory', path:'/FMovies/filter', fixedExtra:{genre:'Horror'} },
-  { id:'sc-movie-scifi', type:'movie', name:'🚀 SC: Sci‑Fi filmy', path:'/FMovies/filter', fixedExtra:{genre:'Sci-Fi'} },
-  { id:'sc-movie-crime', type:'movie', name:'🔎 SC: Krimi filmy', path:'/FMovies/filter', fixedExtra:{genre:'Crime'} },
-  { id:'sc-movie-thriller', type:'movie', name:'⚡ SC: Thrillery', path:'/FMovies/filter', fixedExtra:{genre:'Thriller'} },
-  { id:'sc-movie-documentary', type:'movie', name:'🎥 SC: Dokumenty', path:'/FMovies/filter', fixedExtra:{genre:'Documentary'} },
-  { id:'sc-movie-animation', type:'movie', name:'🧸 SC: Animované filmy', path:'/FMovies/filter', fixedExtra:{genre:'Animation'} },
-  { id:'sc-movie-family', type:'movie', name:'👨‍👩‍👧 SC: Rodinné filmy', path:'/FMovies/filter', fixedExtra:{genre:'Family'} },
-  { id:'sc-movie-romance', type:'movie', name:'❤️ SC: Romantické filmy', path:'/FMovies/filter', fixedExtra:{genre:'Romance'} },
+  // Derived movie catalogs. Bridge maps these to the upstream movie filter;
+  // native fallback uses the APK /FMovies/search route.
+  { id:'sc-movie-2026', type:'movie', name:'🎬 SC: Filmy 2026', path:'/FMovies/search', fixedExtra:{year:'2026'} },
+  { id:'sc-movie-2025', type:'movie', name:'🎬 SC: Filmy 2025', path:'/FMovies/search', fixedExtra:{year:'2025'} },
+  { id:'sc-movie-action', type:'movie', name:'💥 SC: Akčné filmy', path:'/FMovies/search', fixedExtra:{genre:'Action'} },
+  { id:'sc-movie-comedy', type:'movie', name:'😂 SC: Komédie', path:'/FMovies/search', fixedExtra:{genre:'Comedy'} },
+  { id:'sc-movie-horror', type:'movie', name:'👻 SC: Horory', path:'/FMovies/search', fixedExtra:{genre:'Horror'} },
+  { id:'sc-movie-scifi', type:'movie', name:'🚀 SC: Sci‑Fi filmy', path:'/FMovies/search', fixedExtra:{genre:'Sci-Fi'} },
+  { id:'sc-movie-crime', type:'movie', name:'🔎 SC: Krimi filmy', path:'/FMovies/search', fixedExtra:{genre:'Crime'} },
+  { id:'sc-movie-thriller', type:'movie', name:'⚡ SC: Thrillery', path:'/FMovies/search', fixedExtra:{genre:'Thriller'} },
+  { id:'sc-movie-documentary', type:'movie', name:'🎥 SC: Dokumenty', path:'/FMovies/search', fixedExtra:{genre:'Documentary'} },
+  { id:'sc-movie-animation', type:'movie', name:'🧸 SC: Animované filmy', path:'/FMovies/search', fixedExtra:{genre:'Animation'} },
+  { id:'sc-movie-family', type:'movie', name:'👨‍👩‍👧 SC: Rodinné filmy', path:'/FMovies/search', fixedExtra:{genre:'Family'} },
+  { id:'sc-movie-romance', type:'movie', name:'❤️ SC: Romantické filmy', path:'/FMovies/search', fixedExtra:{genre:'Romance'} },
 
-  // Derived series catalogs. These map to the upstream series filter catalog.
-  { id:'sc-series-2026', type:'series', name:'📺 SC: Seriály 2026', path:'/FSeries/filter', fixedExtra:{year:'2026'} },
-  { id:'sc-series-2025', type:'series', name:'📺 SC: Seriály 2025', path:'/FSeries/filter', fixedExtra:{year:'2025'} },
-  { id:'sc-series-drama', type:'series', name:'🎭 SC: Dramatické seriály', path:'/FSeries/filter', fixedExtra:{genre:'Drama'} },
-  { id:'sc-series-comedy', type:'series', name:'😂 SC: Komediálne seriály', path:'/FSeries/filter', fixedExtra:{genre:'Comedy'} },
-  { id:'sc-series-crime', type:'series', name:'🔎 SC: Krimi seriály', path:'/FSeries/filter', fixedExtra:{genre:'Crime'} },
-  { id:'sc-series-scifi', type:'series', name:'🚀 SC: Sci‑Fi seriály', path:'/FSeries/filter', fixedExtra:{genre:'Sci-Fi'} },
-  { id:'sc-series-thriller', type:'series', name:'⚡ SC: Thriller seriály', path:'/FSeries/filter', fixedExtra:{genre:'Thriller'} },
-  { id:'sc-series-documentary', type:'series', name:'🎥 SC: Dokumentárne seriály', path:'/FSeries/filter', fixedExtra:{genre:'Documentary'} },
-  { id:'sc-series-animation', type:'series', name:'🧸 SC: Animované seriály', path:'/FSeries/filter', fixedExtra:{genre:'Animation'} },
+  // Derived series catalogs. Bridge maps these to the upstream series filter;
+  // native fallback uses the APK /FSeries/search route.
+  { id:'sc-series-2026', type:'series', name:'📺 SC: Seriály 2026', path:'/FSeries/search', fixedExtra:{year:'2026'} },
+  { id:'sc-series-2025', type:'series', name:'📺 SC: Seriály 2025', path:'/FSeries/search', fixedExtra:{year:'2025'} },
+  { id:'sc-series-drama', type:'series', name:'🎭 SC: Dramatické seriály', path:'/FSeries/search', fixedExtra:{genre:'Drama'} },
+  { id:'sc-series-comedy', type:'series', name:'😂 SC: Komediálne seriály', path:'/FSeries/search', fixedExtra:{genre:'Comedy'} },
+  { id:'sc-series-crime', type:'series', name:'🔎 SC: Krimi seriály', path:'/FSeries/search', fixedExtra:{genre:'Crime'} },
+  { id:'sc-series-scifi', type:'series', name:'🚀 SC: Sci‑Fi seriály', path:'/FSeries/search', fixedExtra:{genre:'Sci-Fi'} },
+  { id:'sc-series-thriller', type:'series', name:'⚡ SC: Thriller seriály', path:'/FSeries/search', fixedExtra:{genre:'Thriller'} },
+  { id:'sc-series-documentary', type:'series', name:'🎥 SC: Dokumentárne seriály', path:'/FSeries/search', fixedExtra:{genre:'Documentary'} },
+  { id:'sc-series-animation', type:'series', name:'🧸 SC: Animované seriály', path:'/FSeries/search', fixedExtra:{genre:'Animation'} },
 
-  { id:'sc-movie-filter', type:'movie', name:'🔧 SC: Filter filmov', path:'/FMovies/filter', filter:true },
-  { id:'sc-series-filter', type:'series', name:'🔧 SC: Filter seriálov', path:'/FSeries/filter', filter:true }
+  { id:'sc-movie-filter', type:'movie', name:'🔧 SC: Filter filmov', path:'/FMovies/search', filter:true },
+  { id:'sc-series-filter', type:'series', name:'🔧 SC: Filter seriálov', path:'/FSeries/search', filter:true }
 ];
 
 const GENRES=['Action','Animation','Adventure','Documentary','Drama','Erotic','Fantasy','History','Horror','Music','Comedy','Crime','Musical','Mystery','Family','Romance','Sci-Fi','Sport','Stand-up','Thriller','War','Western','Biography','Fairy Tale'];

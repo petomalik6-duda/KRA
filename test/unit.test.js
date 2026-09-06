@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { decryptStreamCinemaIdent, versionIdent, rankSearchCandidates } from '../src/sc.js';
 import { parseStremioId } from '../src/utils.js';
 import { ADDON_VERSION, CATALOGS, makeManifest } from '../src/stremio.js';
+import { decorateStream } from '../src/stream-presentation.js';
 
 test('plain and v0 Stream Cinema identifiers', () => {
   assert.equal(decryptStreamCinemaIdent('plain-ident'), 'plain-ident');
@@ -60,4 +61,38 @@ test('manifest exposes new native KRA catalogs', () => {
   assert.ok(ids.has('movie:sc-movie-newstream'));
   assert.ok(ids.has('series:sc-series-added'));
   assert.ok(ids.has('series:sc-series-newep'));
+});
+
+test('stream presentation exposes NardBadges-compatible tokens and description', () => {
+  const stream = decorateStream({
+    name: 'Stream Cinema',
+    title: 'Movie.2026.2160p.WEB-DL.DV.HDR10+.HEVC.TrueHD.Atmos.7.1.CZ.SK.mkv',
+    url: 'https://example.test/video',
+    behaviorHints: { videoSize: 18 * 1024 * 1024 * 1024 }
+  });
+  assert.match(stream.name, /^KRA/);
+  assert.match(stream.title, /2160p/);
+  assert.match(stream.title, /4K/);
+  assert.match(stream.title, /WEB-DL/);
+  assert.match(stream.title, /DV/);
+  assert.match(stream.title, /HDR10\+/);
+  assert.match(stream.title, /HEVC/);
+  assert.match(stream.title, /Atmos/);
+  assert.match(stream.title, /CZ/);
+  assert.match(stream.title, /SK/);
+  assert.match(stream.description, /🎞/);
+  assert.match(stream.description, /🔊/);
+  assert.match(stream.description, /18 GB/);
+});
+
+test('stream presentation preserves playback and proxy hints', () => {
+  const original = {
+    name: 'KRA • 1080p',
+    title: '1080p • CZ • 5.1',
+    url: 'https://example.test/video',
+    behaviorHints: { notWebReady:true, proxyHeaders:{request:{Referer:'https://example.test/'}} }
+  };
+  const decorated = decorateStream(original);
+  assert.equal(decorated.url, original.url);
+  assert.deepEqual(decorated.behaviorHints, original.behaviorHints);
 });

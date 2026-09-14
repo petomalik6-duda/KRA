@@ -1,8 +1,8 @@
 {
-  "name": "stremio-nuvio-kra-addon",
-  "version": "2.8.0",
+  "name": "kra-direct-stremio-nuvio-addon",
+  "version": "1.0.0",
   "private": true,
-  "description": "Stremio/Nuvio addon reconstructed from supplied Stream Cinema/KRA Android APK with catalogs, metadata and streams.",
+  "description": "Direct KRA / Stream Cinema addon for Stremio and Nuvio without cder.club.",
   "type": "module",
   "engines": {
     "node": "20.x"

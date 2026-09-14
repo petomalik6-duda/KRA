@@ -1,0 +1,68 @@
+[
+  {
+    "id": "kra-film-franchises",
+    "title": "🎞 Filmové kolekcie",
+    "pinToTop": false,
+    "focusGlowEnabled": true,
+    "viewMode": "TABBED_GRID",
+    "showAllTab": true,
+    "folders": [
+      {"id":"fr-harry-potter","title":"Harry Potter","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🪄","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"COLLECTION","title":"Harry Potter Collection","tmdbId":1241,"mediaType":"MOVIE","sortBy":"original","filters":{}}]},
+      {"id":"fr-matrix","title":"The Matrix","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🕶️","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"COLLECTION","title":"The Matrix Collection","tmdbId":2344,"mediaType":"MOVIE","sortBy":"original","filters":{}}]},
+      {"id":"fr-john-wick","title":"John Wick","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🔫","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"COLLECTION","title":"John Wick Collection","tmdbId":404609,"mediaType":"MOVIE","sortBy":"original","filters":{}}]},
+      {"id":"fr-star-wars","title":"Star Wars","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🌌","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"COLLECTION","title":"Star Wars Collection","tmdbId":10,"mediaType":"MOVIE","sortBy":"original","filters":{}}]},
+      {"id":"fr-fast-furious","title":"Fast & Furious","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🏎️","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"COLLECTION","title":"The Fast and the Furious Collection","tmdbId":9485,"mediaType":"MOVIE","sortBy":"original","filters":{}}]},
+      {"id":"fr-mission-impossible","title":"Mission: Impossible","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🕵️","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"COLLECTION","title":"Mission: Impossible Collection","tmdbId":87359,"mediaType":"MOVIE","sortBy":"original","filters":{}}]},
+      {"id":"fr-lotr","title":"Pán prsteňov","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"💍","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"COLLECTION","title":"The Lord of the Rings Collection","tmdbId":119,"mediaType":"MOVIE","sortBy":"original","filters":{}}]},
+      {"id":"fr-jurassic","title":"Jurassic Park / World","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🦖","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"COLLECTION","title":"Jurassic Park Collection","tmdbId":328,"mediaType":"MOVIE","sortBy":"original","filters":{}}]}
+    ]
+  },
+  {
+    "id": "kra-people-directors",
+    "title": "🌟 Herci a režiséri",
+    "pinToTop": false,
+    "focusGlowEnabled": true,
+    "viewMode": "TABBED_GRID",
+    "showAllTab": true,
+    "folders": [
+      {"id":"actor-tom-cruise","title":"Tom Cruise","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"⭐","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"PERSON","title":"Tom Cruise – filmy","tmdbId":500,"mediaType":"MOVIE","sortBy":"popularity.desc","filters":{}},{"provider":"tmdb","tmdbSourceType":"PERSON","title":"Tom Cruise – seriály","tmdbId":500,"mediaType":"TV","sortBy":"popularity.desc","filters":{}}]},
+      {"id":"actor-keanu-reeves","title":"Keanu Reeves","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"⭐","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"PERSON","title":"Keanu Reeves – filmy","tmdbId":6384,"mediaType":"MOVIE","sortBy":"popularity.desc","filters":{}}]},
+      {"id":"actor-leonardo-dicaprio","title":"Leonardo DiCaprio","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"⭐","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"PERSON","title":"Leonardo DiCaprio – filmy","tmdbId":6193,"mediaType":"MOVIE","sortBy":"popularity.desc","filters":{}}]},
+      {"id":"actor-brad-pitt","title":"Brad Pitt","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"⭐","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"PERSON","title":"Brad Pitt – filmy","tmdbId":287,"mediaType":"MOVIE","sortBy":"popularity.desc","filters":{}}]},
+      {"id":"actor-denzel","title":"Denzel Washington","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"⭐","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"PERSON","title":"Denzel Washington – filmy","tmdbId":5292,"mediaType":"MOVIE","sortBy":"popularity.desc","filters":{}}]},
+      {"id":"director-nolan","title":"Christopher Nolan","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🎬","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"DIRECTOR","title":"Christopher Nolan","tmdbId":525,"mediaType":"MOVIE","sortBy":"primary_release_date.desc","filters":{}}]},
+      {"id":"director-spielberg","title":"Steven Spielberg","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🎬","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"DIRECTOR","title":"Steven Spielberg","tmdbId":488,"mediaType":"MOVIE","sortBy":"primary_release_date.desc","filters":{}}]},
+      {"id":"director-tarantino","title":"Quentin Tarantino","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🎬","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"DIRECTOR","title":"Quentin Tarantino","tmdbId":138,"mediaType":"MOVIE","sortBy":"primary_release_date.desc","filters":{}}]},
+      {"id":"director-scorsese","title":"Martin Scorsese","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🎬","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"DIRECTOR","title":"Martin Scorsese","tmdbId":1032,"mediaType":"MOVIE","sortBy":"primary_release_date.desc","filters":{}}]},
+      {"id":"director-ridley-scott","title":"Ridley Scott","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🎬","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"DIRECTOR","title":"Ridley Scott","tmdbId":578,"mediaType":"MOVIE","sortBy":"primary_release_date.desc","filters":{}}]}
+    ]
+  },
+  {
+    "id": "kra-awards",
+    "title": "🏆 Ocenenia",
+    "pinToTop": false,
+    "focusGlowEnabled": true,
+    "viewMode": "TABBED_GRID",
+    "showAllTab": true,
+    "folders": [
+      {"id":"awards-oscar-best-picture","title":"Oscar – Best Picture Winners","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🏆","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"LIST","title":"Best Picture Winners – The Academy Awards","tmdbId":28,"mediaType":"MOVIE","sortBy":"original","filters":{}}]},
+      {"id":"awards-top-rated-movies","title":"Najlepšie hodnotené filmy","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🥇","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"DISCOVER","title":"Top Rated Movies","tmdbId":null,"mediaType":"MOVIE","sortBy":"vote_average.desc","filters":{"voteAverageGte":7.5,"voteCountGte":1500}}]},
+      {"id":"awards-top-rated-series","title":"Najlepšie hodnotené seriály","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🥇","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"DISCOVER","title":"Top Rated Series","tmdbId":null,"mediaType":"TV","sortBy":"vote_average.desc","filters":{"voteAverageGte":7.5,"voteCountGte":1000}}]}
+    ]
+  },
+  {
+    "id": "kra-special-content",
+    "title": "✨ Špeciálny obsah",
+    "pinToTop": false,
+    "focusGlowEnabled": true,
+    "viewMode": "TABBED_GRID",
+    "showAllTab": true,
+    "folders": [
+      {"id":"special-concerts","title":"Koncerty a hudba","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🎵","tileShape":"LANDSCAPE","hideTitle":false,"catalogSources":[{"addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-concerts"}],"sources":[{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-concerts"}]},
+      {"id":"special-docs","title":"Dokumenty","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🎥","tileShape":"LANDSCAPE","hideTitle":false,"catalogSources":[{"addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-documentary"},{"addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-documentary"}],"sources":[{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-documentary"},{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-documentary"}]},
+      {"id":"special-animation","title":"Animované","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🧸","tileShape":"LANDSCAPE","hideTitle":false,"catalogSources":[{"addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-animation"},{"addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-animation"}],"sources":[{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-animation"},{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-animation"}]},
+      {"id":"special-family","title":"Rodinné","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"👨‍👩‍👧","tileShape":"LANDSCAPE","hideTitle":false,"catalogSources":[{"addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-family"}],"sources":[{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-family"}]},
+      {"id":"special-new-episodes","title":"Nové epizódy","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"📺","tileShape":"LANDSCAPE","hideTitle":false,"catalogSources":[{"addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-newep"}],"sources":[{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-newep"}]}
+    ]
+  }
+]

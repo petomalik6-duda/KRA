@@ -9,10 +9,9 @@ function cacheKey(config) {
   return `${config.username}\u0000${config.uid}`;
 }
 
-function commonHeaders(config) {
+function commonHeaders() {
   return {
-    'User-Agent': APP_USER_AGENT,
-    'X-Uuid': config.uid
+    'User-Agent': APP_USER_AGENT
   };
 }
 
@@ -32,7 +31,7 @@ export class KraClient {
 
     const data = await fetchJson(new URL('api/user/login', KRA_BASE), {
       method: 'POST',
-      headers: commonHeaders(this.config),
+      headers: commonHeaders(),
       json: { data: { username: this.config.username, password: this.config.password } }
     });
     if (!data?.session_id) {
@@ -48,7 +47,7 @@ export class KraClient {
       const sessionId = await this.login(force);
       return fetchJson(new URL('api/user/info', KRA_BASE), {
         method: 'POST',
-        headers: commonHeaders(this.config),
+        headers: commonHeaders(),
         json: { session_id: sessionId }
       });
     };
@@ -64,7 +63,7 @@ export class KraClient {
       const sessionId = await this.login(force);
       return fetchJson(new URL('api/file/list', KRA_BASE), {
         method: 'POST',
-        headers: commonHeaders(this.config),
+        headers: commonHeaders(),
         json: { data: { parent, filter }, session_id: sessionId }
       });
     };
@@ -81,7 +80,7 @@ export class KraClient {
       const sessionId = await this.login(force);
       const data = await fetchJson(new URL('api/file/download', KRA_BASE), {
         method: 'POST',
-        headers: commonHeaders(this.config),
+        headers: commonHeaders(),
         json: { data: { ident }, session_id: sessionId }
       });
       const link = data?.data?.link;

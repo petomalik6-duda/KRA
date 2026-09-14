@@ -58,8 +58,6 @@ function resolutionFromText(text) {
   return null;
 }
 
-// Use the most authoritative concrete-stream field first. This prevents a
-// generic title/description from overriding an explicit quality such as FHD.
 function resolutionInfo(stream) {
   const fields = [
     stream?.quality,
@@ -152,8 +150,6 @@ function languageDisplay(languages) {
   });
 }
 
-// Any CZ or SK audio counts as the same dubbed priority group. Once a stream
-// is dubbed, resolution decides before whether it has one or both languages.
 function dubbingRank(languages) {
   const set = new Set(languages);
   if (set.has('CZ') || set.has('SK')) return 300;
@@ -247,7 +243,7 @@ export function decorateStream(stream) {
     .filter(Boolean).join(' • ') || 'KRA Stream';
 
   const flaggedLanguages = languageDisplay(languages);
-  const name = ['KRA', resolution.short, flaggedLanguages.length ? flaggedLanguages.join(' / ') : '']
+  const name = ['KRA', resolution.short, flaggedLanguages.length ? flaggedLanguages.join(' / ') : '', size ? `💾 ${size}` : '']
     .filter(Boolean).join(' • ') || compactText(stream.name) || 'KRA';
 
   const description = descriptionLines({

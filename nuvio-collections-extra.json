@@ -1,0 +1,66 @@
+[
+  {
+    "id": "kra-cz-sk",
+    "title": "🇨🇿🇸🇰 CZ/SK",
+    "pinToTop": false,
+    "focusGlowEnabled": true,
+    "viewMode": "TABBED_GRID",
+    "showAllTab": true,
+    "folders": [
+      {"id":"czsk-dubbed-movies","title":"Novinky dabované – filmy","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🎬","tileShape":"POSTER","hideTitle":false,"catalogSources":[{"addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-latest-dubbed"}],"sources":[{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-latest-dubbed"}]},
+      {"id":"czsk-dubbed-series","title":"Novinky dabované – seriály","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"📺","tileShape":"POSTER","hideTitle":false,"catalogSources":[{"addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-latest-dubbed"}],"sources":[{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-latest-dubbed"}]},
+      {"id":"czsk-new-episodes","title":"Nové epizódy","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🆕","tileShape":"POSTER","hideTitle":false,"catalogSources":[{"addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-newep"}],"sources":[{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-newep"}]},
+      {"id":"cz-original-movies","title":"České filmy","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🇨🇿","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"DISCOVER","title":"České filmy","tmdbId":null,"mediaType":"MOVIE","sortBy":"popularity.desc","filters":{"withOriginalLanguage":"cs","withOriginCountry":"CZ"}}]},
+      {"id":"sk-original-movies","title":"Slovenské filmy","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🇸🇰","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"DISCOVER","title":"Slovenské filmy","tmdbId":null,"mediaType":"MOVIE","sortBy":"popularity.desc","filters":{"withOriginalLanguage":"sk","withOriginCountry":"SK"}}]}
+    ]
+  },
+  {
+    "id": "kra-streaming-services",
+    "title": "📡 Streaming služby",
+    "pinToTop": false,
+    "focusGlowEnabled": true,
+    "viewMode": "TABBED_GRID",
+    "showAllTab": true,
+    "folders": [
+      {"id":"stream-netflix","title":"Netflix","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🔴","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"DISCOVER","title":"Netflix – filmy","tmdbId":null,"mediaType":"MOVIE","sortBy":"popularity.desc","filters":{"watchRegion":"SK","withWatchProviders":"8"}},{"provider":"tmdb","tmdbSourceType":"DISCOVER","title":"Netflix – seriály","tmdbId":null,"mediaType":"TV","sortBy":"popularity.desc","filters":{"watchRegion":"SK","withWatchProviders":"8"}}]},
+      {"id":"stream-disney","title":"Disney+","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"✨","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"DISCOVER","title":"Disney+ – filmy","tmdbId":null,"mediaType":"MOVIE","sortBy":"popularity.desc","filters":{"watchRegion":"SK","withWatchProviders":"337"}},{"provider":"tmdb","tmdbSourceType":"DISCOVER","title":"Disney+ – seriály","tmdbId":null,"mediaType":"TV","sortBy":"popularity.desc","filters":{"watchRegion":"SK","withWatchProviders":"337"}}]},
+      {"id":"stream-max","title":"Max","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🟣","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"DISCOVER","title":"Max – filmy","tmdbId":null,"mediaType":"MOVIE","sortBy":"popularity.desc","filters":{"watchRegion":"SK","withWatchProviders":"1899"}},{"provider":"tmdb","tmdbSourceType":"DISCOVER","title":"Max – seriály","tmdbId":null,"mediaType":"TV","sortBy":"popularity.desc","filters":{"watchRegion":"SK","withWatchProviders":"1899"}}]},
+      {"id":"stream-prime","title":"Prime Video","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"📦","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"DISCOVER","title":"Prime Video – filmy","tmdbId":null,"mediaType":"MOVIE","sortBy":"popularity.desc","filters":{"watchRegion":"SK","withWatchProviders":"119"}},{"provider":"tmdb","tmdbSourceType":"DISCOVER","title":"Prime Video – seriály","tmdbId":null,"mediaType":"TV","sortBy":"popularity.desc","filters":{"watchRegion":"SK","withWatchProviders":"119"}}]},
+      {"id":"stream-apple","title":"Apple TV+","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🍎","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"DISCOVER","title":"Apple TV+ – filmy","tmdbId":null,"mediaType":"MOVIE","sortBy":"popularity.desc","filters":{"watchRegion":"SK","withWatchProviders":"350"}},{"provider":"tmdb","tmdbSourceType":"DISCOVER","title":"Apple TV+ – seriály","tmdbId":null,"mediaType":"TV","sortBy":"popularity.desc","filters":{"watchRegion":"SK","withWatchProviders":"350"}}]}
+    ]
+  },
+  {
+    "id": "kra-genres",
+    "title": "🎭 Žánre",
+    "pinToTop": false,
+    "focusGlowEnabled": true,
+    "viewMode": "TABBED_GRID",
+    "showAllTab": true,
+    "folders": [
+      {"id":"genre-action","title":"Akčné","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"💥","tileShape":"POSTER","hideTitle":false,"catalogSources":[{"addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-action"}],"sources":[{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-action"}]},
+      {"id":"genre-comedy","title":"Komédie","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"😂","tileShape":"POSTER","hideTitle":false,"catalogSources":[{"addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-comedy"},{"addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-comedy"}],"sources":[{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-comedy"},{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-comedy"}]},
+      {"id":"genre-horror","title":"Horory","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"👻","tileShape":"POSTER","hideTitle":false,"catalogSources":[{"addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-horror"}],"sources":[{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-horror"}]},
+      {"id":"genre-scifi","title":"Sci‑Fi","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🚀","tileShape":"POSTER","hideTitle":false,"catalogSources":[{"addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-scifi"},{"addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-scifi"}],"sources":[{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-scifi"},{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-scifi"}]},
+      {"id":"genre-crime","title":"Krimi","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🔎","tileShape":"POSTER","hideTitle":false,"catalogSources":[{"addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-crime"},{"addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-crime"}],"sources":[{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-crime"},{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-crime"}]},
+      {"id":"genre-thriller","title":"Thrillery","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"⚡","tileShape":"POSTER","hideTitle":false,"catalogSources":[{"addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-thriller"},{"addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-thriller"}],"sources":[{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-thriller"},{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-thriller"}]},
+      {"id":"genre-animation","title":"Animované","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🧸","tileShape":"POSTER","hideTitle":false,"catalogSources":[{"addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-animation"},{"addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-animation"}],"sources":[{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-animation"},{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-animation"}]},
+      {"id":"genre-documentary","title":"Dokumenty","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🎥","tileShape":"POSTER","hideTitle":false,"catalogSources":[{"addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-documentary"},{"addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-documentary"}],"sources":[{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"movie","catalogId":"sc-movie-documentary"},{"provider":"addon","addonId":"sk.kra.direct.stremio.nuvio","type":"series","catalogId":"sc-series-documentary"}]}
+    ]
+  },
+  {
+    "id": "kra-movie-universes",
+    "title": "🌌 Filmové univerzá",
+    "pinToTop": false,
+    "focusGlowEnabled": true,
+    "viewMode": "TABBED_GRID",
+    "showAllTab": true,
+    "folders": [
+      {"id":"universe-marvel","title":"Marvel Studios","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🦸","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"DISCOVER","title":"Marvel Studios","tmdbId":null,"mediaType":"MOVIE","sortBy":"primary_release_date.asc","filters":{"withCompanies":"420"}}]},
+      {"id":"universe-dc","title":"DC","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🦇","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"DISCOVER","title":"DC Entertainment","tmdbId":null,"mediaType":"MOVIE","sortBy":"primary_release_date.asc","filters":{"withCompanies":"9993"}}]},
+      {"id":"universe-star-wars","title":"Star Wars","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🌠","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"COLLECTION","title":"Star Wars Collection","tmdbId":10,"mediaType":"MOVIE","sortBy":"original","filters":{}}]},
+      {"id":"universe-wizarding","title":"Wizarding World","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🪄","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"COLLECTION","title":"Harry Potter Collection","tmdbId":1241,"mediaType":"MOVIE","sortBy":"original","filters":{}},{"provider":"tmdb","tmdbSourceType":"COLLECTION","title":"Fantastic Beasts Collection","tmdbId":435259,"mediaType":"MOVIE","sortBy":"original","filters":{}}]},
+      {"id":"universe-alien-predator","title":"Alien / Predator","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"👽","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"COLLECTION","title":"Alien Collection","tmdbId":8091,"mediaType":"MOVIE","sortBy":"original","filters":{}},{"provider":"tmdb","tmdbSourceType":"COLLECTION","title":"Predator Collection","tmdbId":399,"mediaType":"MOVIE","sortBy":"original","filters":{}}]},
+      {"id":"universe-jurassic","title":"Jurassic Park / World","coverImageUrl":null,"focusGifUrl":null,"focusGifEnabled":true,"coverEmoji":"🦖","tileShape":"POSTER","hideTitle":false,"catalogSources":[],"sources":[{"provider":"tmdb","tmdbSourceType":"COLLECTION","title":"Jurassic Park Collection","tmdbId":328,"mediaType":"MOVIE","sortBy":"original","filters":{}}]}
+    ]
+  }
+]

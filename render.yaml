@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: stremio-nuvio-kra-addon
+    name: kra-direct-stremio-nuvio
     runtime: node
     plan: free
     buildCommand: npm install
@@ -14,5 +14,7 @@ services:
         generateValue: true
       - key: DEBUG
         value: 0
-      - key: UPSTREAM_STREMIO_BASE
+      - key: TMDB_API_KEY
         sync: false
+      - key: CSFD_ENRICH
+        value: 1
